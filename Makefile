@@ -177,9 +177,6 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 # http://www.gnu.org/software/make/manual/html_node/Chained-Rules.html
 .PRECIOUS: %.o
 
-# The underscore is for disambiguation with the Linux tools.
-# mkfs strips the underscore when creating the xv6 filesystem.
-
 UPROGS=\
 	$U/_cat\
 	$U/_echo\
@@ -197,15 +194,6 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
-	$U/_ex1\
-	$U/_ex2\
-	$U/_ex3\
-	$U/_ex4\
-	$U/_ex5\
-	$U/_ex6\
-	$U/_ex7\
-	$U/_ex8\
-	$U/_ex9\
 
 
 
@@ -273,6 +261,10 @@ UPROGS += \
 endif
 
 
+ifeq ($(LAB),mmap)
+UPROGS += \
+	$U/_mmaptest
+endif
 
 ifeq ($(LAB),net)
 UPROGS += \
@@ -288,6 +280,9 @@ endif
 fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
 	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS)
 
+newfs.img: 
+	-mv -f fs.img fs.img.bk
+
 -include kernel/*.d user/*.d
 
 clean:
@@ -295,7 +290,7 @@ clean:
 	*/*.o */*.d */*.asm */*.sym \
 	$U/initcode $U/initcode.out $U/usys.S $U/_* \
 	$K/kernel \
-	mkfs/mkfs fs.img .gdbinit __pycache__ xv6.out* \
+	mkfs/mkfs fs.img fs.img.bk .gdbinit __pycache__ xv6.out* \
 	ph barrier
 
 # try to generate a unique GDB port
@@ -324,7 +319,12 @@ QEMUOPTS += -netdev user,id=net0,hostfwd=udp::$(FWDPORT1)-:2000,hostfwd=udp::$(F
 QEMUOPTS += -device e1000,netdev=net0,bus=pcie.0
 endif
 
-qemu: $K/kernel fs.img
+# makes a new fs.img
+qemu: newfs.img $K/kernel fs.img
+	$(QEMU) $(QEMUOPTS)
+
+# runs with existing fs.img, if present
+qemu-fs: $K/kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv
