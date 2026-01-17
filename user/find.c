@@ -10,21 +10,18 @@ fmtname(char *path)
   static char buf[DIRSIZ+1];
   char *p;
 
-  // Find first character after last slash.
-  for(p=path+strlen(path); p >= path && *p != '/'; p--)
-    ;
+  //returns path as string?
+  for(p=path+strlen(path); p >= path; p--);
   p++;
 
-  // Return blank-padded name.
-  if(strlen(p) >= DIRSIZ)
-    return p;
   memmove(buf, p, strlen(p));
   memset(buf+strlen(p), ' ', DIRSIZ-strlen(p));
   return buf;
 }
 
 void
-ls(char *path)
+find(char *path, char *file)
+
 {
   char buf[512], *p;
   int fd;
@@ -32,12 +29,12 @@ ls(char *path)
   struct stat st;
 
   if((fd = open(path, O_RDONLY)) < 0){ //open directory/file
-    fprintf(2, "ls: cannot open %s\n", path);
+    fprintf(2, "find: cannot open %s\n", path);
     return;
   }
 
   if(fstat(fd, &st) < 0){ //metadata of file opened
-    fprintf(2, "ls: cannot stat %s\n", path);
+    fprintf(2, "find: cannot stat %s\n", path);
     close(fd);
     return;
   }
@@ -50,7 +47,7 @@ ls(char *path)
 
   case T_DIR:
     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
-      printf("ls: path too long\n");
+      printf("find: path too long\n");
       break;
     }
     strcpy(buf, path);
@@ -62,10 +59,20 @@ ls(char *path)
       memmove(p, de.name, DIRSIZ); //if in use copy name, add to path
       p[DIRSIZ] = 0;
       if(stat(buf, &st) < 0){
-        printf("ls: cannot stat %s\n", buf);
+        printf("find: cannot stat %s\n", buf);
         continue;
       }
-      printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, (int) st.size);
+
+      if(strcmp(file, de.name) == 0){
+        printf("%s\n", buf);
+      }
+
+        if(st.type == T_DIR){
+          if((strcmp(de.name, ".") != 0) || (strcmp(de.name, "..") != 0)){
+            printf("buf: %s\n",  buf);
+            find(fmtname(buf), file);
+          }
+        }
     }
     break;
   }
@@ -75,13 +82,11 @@ ls(char *path)
 int
 main(int argc, char *argv[])
 {
-  int i;
-
-  if(argc < 2){
-    ls(".");
+  if(argc < 3){
+    printf("usage: find <path> <file>\n");
     exit(0);
   }
-  for(i=1; i<argc; i++)
-    ls(argv[i]);
+
+  find(argv[1], argv[2]);
   exit(0);
 }
