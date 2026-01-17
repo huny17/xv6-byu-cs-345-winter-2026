@@ -68,9 +68,8 @@ find(char *path, char *file)
       }
 
         if(st.type == T_DIR){
-          if((strcmp(de.name, ".") != 0) || (strcmp(de.name, "..") != 0)){
-            printf("buf: %s\n",  buf);
-            find(fmtname(buf), file);
+          if((strcmp(de.name, ".") != 0) && (strcmp(de.name, "..") != 0)){
+            find(buf, file);
           }
         }
     }
