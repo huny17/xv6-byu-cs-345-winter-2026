@@ -6,7 +6,8 @@
         name - 69 6e 69 74 63 6f 64 65
         name - i  n  i  t  c  o  d  e
 
-        my proc calling the initcode func
+        my proc calling the initcode func, Its a pointer pointing to a frame that holds 
+        syscalls that is also pointing to a register, I assume it is pointing to the address call of initcode.
 
 3 What was the previous mode that the CPU was in?
         User mode.
