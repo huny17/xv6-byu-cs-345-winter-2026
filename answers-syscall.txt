@@ -26,4 +26,4 @@
         its memory. scause = 0xd, a load page fault due to a bad address.
 
 6 What is the name of the process that was running when the kernel paniced? What is its process id (pid)?
-        
+        initcode was the name of the process running. ID = 1.
