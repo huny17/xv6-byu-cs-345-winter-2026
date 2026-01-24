@@ -1,12 +1,29 @@
 1 Looking at the backtrace output, which function called syscall?
+        in usertrap () at kernel/trap.c:67
+        in ?? ()
 
 2 What is the value of p->trapframe->a7 and what does that value represent? (Hint: look user/initcode.S, the first user program xv6 starts.)
+        name - 69 6e 69 74 63 6f 64 65
+        name - i  n  i  t  c  o  d  e
+
+        my proc calling the initcode func
 
 3 What was the previous mode that the CPU was in?
+        User mode.
 
 4 Write down the assembly instruction the kernel is panicing at. Which register corresponds to the variable num?
+        sepc = 0x80001c92 printed when tried to run
+
+        num = * (int *) 0;
+            80001c92:	00002683          	lw	a3,0(zero) # 0 <_entry-0x80000000>
+
+        The zero register corresponds to the variable num.
 
 5 Why does the kernel crash? Hint: look at figure 3-3 in the text; is address 0 mapped in the kernel address space? Is that confirmed by the value in scause above?
 
-6 What is the name of the process that was running when the kernel paniced? What is its process id (pid)?
+            80001c92:	00002683          	lw	a3,0(zero) # 0 <_entry-0x80000000>
+        address 0 is not mapped in kernel space. It cannot access the address as it does not exist in
+        its memory. scause = 0xd, a load page fault due to a bad address.
 
+6 What is the name of the process that was running when the kernel paniced? What is its process id (pid)?
+        
