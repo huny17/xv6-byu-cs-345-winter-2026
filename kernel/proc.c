@@ -12,6 +12,8 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
+int tracemask;
+
 int nextpid = 1;
 struct spinlock pid_lock;
 
@@ -283,6 +285,7 @@ fork(void)
   struct proc *np;
   struct proc *p = myproc();
 
+
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
@@ -295,6 +298,8 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  
+  np->tracemask = p->tracemask;
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);

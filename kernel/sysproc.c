@@ -96,7 +96,7 @@ uint64
 sys_trace(void)
 {
   int n;
-  argint(0, &n);
+  myproc -> tracemask = argint(0, &n);
   return trace(n);
 }
 
