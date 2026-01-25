@@ -97,8 +97,7 @@ sys_trace(void)
 {
   int n;
   argint(0, &n);
-  trace(n);
-  return;
+  return trace(n);
 }
 
 
