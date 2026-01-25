@@ -12,8 +12,6 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
-int tracemask;
-
 int nextpid = 1;
 struct spinlock pid_lock;
 
@@ -121,6 +119,7 @@ allocproc(void)
       release(&p->lock);
     }
   }
+  p->tracemask = 0;
   return 0;
 
 found:
@@ -298,7 +297,7 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
-  
+
   np->tracemask = p->tracemask;
 
   // copy saved user registers.
@@ -637,6 +636,13 @@ killed(struct proc *p)
   k = p->killed;
   release(&p->lock);
   return k;
+}
+
+void
+trace(int n)
+{
+  struct proc *p = myproc();
+  p->tracemask = n; 
 }
 
 // Copy to either a user address, or kernel address,

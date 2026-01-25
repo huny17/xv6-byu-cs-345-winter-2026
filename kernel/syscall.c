@@ -165,13 +165,14 @@ syscall(void)
 
   char * name = callnames[num];
 
-
-  
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
     p->trapframe->a0 = syscalls[num]();
-    printf("%d: syscall %s -> %ld", p->pid, name, p->trapframe->a0 = syscalls[num]());
+
+    if(p->tracemask &(1 << num)){
+      printf("%d: syscall %s -> %ld\n", p->pid, name, p->trapframe->a0);
+    }
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
