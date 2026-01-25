@@ -161,13 +161,17 @@ syscall(void)
   int num;
   struct proc *p = myproc();
 
-  num = * (int *) 0; //num = p->trapframe->a7;
+  num = p->trapframe->a7; //num = * (int *) 0;
+
+  char * name = callnames[num];
+
+
   
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
     p->trapframe->a0 = syscalls[num]();
-    printf("%d: syscall %s -> %d", p->pid, callnames[num](), a0);
+    printf("%d: syscall %s -> %ld", p->pid, name, p->trapframe->a0 = syscalls[num]());
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
