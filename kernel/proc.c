@@ -260,7 +260,7 @@ int
 growproc(int n)
 {
   uint64 sz;
-  struct proc *p = myproc();
+  struct proc *p = myproc(); //pointer to myproc()
 
   sz = p->sz;
   if(n > 0){

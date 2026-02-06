@@ -260,9 +260,9 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
   if(newsz < oldsz)
     return oldsz;
 
-  oldsz = PGROUNDUP(oldsz);
+  oldsz = PGROUNDUP(oldsz);   //making page aligned?
   for(a = oldsz; a < newsz; a += sz){
-    sz = PGSIZE;
+    sz = PGSIZE;        //go up a page ea. time
     mem = kalloc();
     if(mem == 0){
       uvmdealloc(pagetable, a, oldsz);
