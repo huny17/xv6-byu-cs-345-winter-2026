@@ -1,0 +1,191 @@
+OUTPUT:
+```
+$ pgtbltest
+print_pgtbl starting
+va 0x0 pte 0x21FC885B pa 0x87F22000 perm 0x5B
+va 0x1000 pte 0x21FC7C1B pa 0x87F1F000 perm 0x1B
+va 0x2000 pte 0x21FC7817 pa 0x87F1E000 perm 0x17
+va 0x3000 pte 0x21FC7407 pa 0x87F1D000 perm 0x7
+va 0x4000 pte 0x21FC70D7 pa 0x87F1C000 perm 0xD7
+va 0x5000 pte 0x0 pa 0x0 perm 0x0
+va 0x6000 pte 0x0 pa 0x0 perm 0x0
+va 0x7000 pte 0x0 pa 0x0 perm 0x0
+va 0x8000 pte 0x0 pa 0x0 perm 0x0
+va 0x9000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFF6000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFF7000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFF8000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFF9000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFFA000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFFB000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFFC000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFFD000 pte 0x0 pa 0x0 perm 0x0
+va 0xFFFFE000 pte 0x21FD08C7 pa 0x87F42000 perm 0xC7
+va 0xFFFFF000 pte 0x2000184B pa 0x80006000 perm 0x4B
+print_pgtbl: OK
+ugetpid_test starting
+usertrap(): unexpected scause 0xd pid=4
+            sepc=0x53e stval=0x3fffffd000
+```
+
+ANALYSIS:
+
+va 0x0 pte 0x21FC885B pa 0x87F22000 perm 0x5B
+    Contains: Trampoline?
+    Permission Bits: 5B -> 0101 1011
+        Execute: 1
+        Write: 0
+        Read: 1
+        Valid: 1
+
+va 0x1000 pte 0x21FC7C1B pa 0x87F1F000 perm 0x1B
+    Contains:
+    Permission Bits: 1B -> 0001 1011
+        Execute: 1
+        Write: 0
+        Read: 1
+        Valid: 1
+
+va 0x2000 pte 0x21FC7817 pa 0x87F1E000 perm 0x17
+    Contains: Trapframe
+    Permission Bits: 17 -> 0001 0111
+        Execute: 0
+        Write: 1
+        Read: 1
+        Valid: 1
+
+va 0x3000 pte 0x21FC7407 pa 0x87F1D000 perm 0x7
+    Contains:
+    Permission Bits: 07 -> 0000 0111
+        Execute: 0
+        Write: 1
+        Read: 1
+        Valid: 1
+
+va 0x4000 pte 0x21FC70D7 pa 0x87F1C000 perm 0xD7
+    Contains:
+    Permission Bits: D7 -> -> 1101 0111
+        Execute: 0
+        Write: 1
+        Read: 1
+        Valid: 1
+
+va 0x5000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0x6000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0x7000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0x8000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0x9000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFF6000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFF7000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFF8000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFF9000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFFA000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFFB000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFFC000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFFD000 pte 0x0 pa 0x0 perm 0x0
+    Contains:
+    Permission Bits: 0
+        Execute: 0
+        Write: 0
+        Read: 0 
+        Valid: 0
+
+va 0xFFFFE000 pte 0x21FD08C7 pa 0x87F42000 perm 0xC7
+    Contains:
+    Permission Bits: C7 -> 1100 0111
+        Execute: 0
+        Write: 1
+        Read: 1 
+        Valid: 1
+
+va 0xFFFFF000 pte 0x2000184B pa 0x80006000 perm 0x4B   
+    Contains:
+    Permission Bits: 4B -> 0100 1011
+        Execute: 1
+        Write: 0
+        Read: 1
+        Valid: 1
