@@ -1,3 +1,5 @@
+---Inspect a user-process page table (easy)---
+
 OUTPUT:
 ```
 $ pgtbltest
@@ -189,3 +191,12 @@ va 0xFFFFF000 pte 0x2000184B pa 0x80006000 perm 0x4B
         Write: 0
         Read: 1
         Valid: 1
+
+
+---Speed up system calls (easy)---
+Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+    I think it would depend on how much access we would want the user to have.
+    I could see wait() being sped up using this process. It could wait and the get the child process's
+    PID from a saved memory instead of searching through and waiting.
+
+ 

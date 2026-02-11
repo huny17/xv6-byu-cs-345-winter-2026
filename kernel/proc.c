@@ -153,6 +153,8 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->usyscall->pid = p->pid; //my code
+
   return p;
 }
 
