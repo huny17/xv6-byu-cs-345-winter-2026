@@ -33,7 +33,7 @@ usertrap(): unexpected scause 0xd pid=4
 ANALYSIS:
 
 va 0x0 pte 0x21FC885B pa 0x87F22000 perm 0x5B
-    Contains: Trampoline?
+    Contains: Code
     Permission Bits: 5B -> 0101 1011
         Execute: 1
         Write: 0
@@ -41,7 +41,7 @@ va 0x0 pte 0x21FC885B pa 0x87F22000 perm 0x5B
         Valid: 1
 
 va 0x1000 pte 0x21FC7C1B pa 0x87F1F000 perm 0x1B
-    Contains:
+    Contains: Data
     Permission Bits: 1B -> 0001 1011
         Execute: 1
         Write: 0
@@ -49,7 +49,7 @@ va 0x1000 pte 0x21FC7C1B pa 0x87F1F000 perm 0x1B
         Valid: 1
 
 va 0x2000 pte 0x21FC7817 pa 0x87F1E000 perm 0x17
-    Contains: Trapframe
+    Contains: Guard
     Permission Bits: 17 -> 0001 0111
         Execute: 0
         Write: 1
@@ -57,7 +57,7 @@ va 0x2000 pte 0x21FC7817 pa 0x87F1E000 perm 0x17
         Valid: 1
 
 va 0x3000 pte 0x21FC7407 pa 0x87F1D000 perm 0x7
-    Contains:
+    Contains: Heap
     Permission Bits: 07 -> 0000 0111
         Execute: 0
         Write: 1
@@ -65,7 +65,7 @@ va 0x3000 pte 0x21FC7407 pa 0x87F1D000 perm 0x7
         Valid: 1
 
 va 0x4000 pte 0x21FC70D7 pa 0x87F1C000 perm 0xD7
-    Contains:
+    Contains: Stack
     Permission Bits: D7 -> -> 1101 0111
         Execute: 0
         Write: 1
@@ -73,7 +73,7 @@ va 0x4000 pte 0x21FC70D7 pa 0x87F1C000 perm 0xD7
         Valid: 1
 
 va 0x5000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -81,7 +81,7 @@ va 0x5000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0x6000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -89,7 +89,7 @@ va 0x6000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0x7000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -97,7 +97,7 @@ va 0x7000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0x8000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -105,7 +105,7 @@ va 0x8000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0x9000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -113,7 +113,7 @@ va 0x9000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFF6000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -121,7 +121,7 @@ va 0xFFFF6000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFF7000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -129,7 +129,7 @@ va 0xFFFF7000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFF8000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -137,7 +137,7 @@ va 0xFFFF8000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFF9000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -145,7 +145,7 @@ va 0xFFFF9000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFFA000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -153,7 +153,7 @@ va 0xFFFFA000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFFB000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -161,7 +161,7 @@ va 0xFFFFB000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFFC000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -169,7 +169,7 @@ va 0xFFFFC000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFFD000 pte 0x0 pa 0x0 perm 0x0
-    Contains:
+    Contains: Nothing that matters
     Permission Bits: 0
         Execute: 0
         Write: 0
@@ -177,7 +177,7 @@ va 0xFFFFD000 pte 0x0 pa 0x0 perm 0x0
         Valid: 0
 
 va 0xFFFFE000 pte 0x21FD08C7 pa 0x87F42000 perm 0xC7
-    Contains:
+    Contains: Trapframe
     Permission Bits: C7 -> 1100 0111
         Execute: 0
         Write: 1
@@ -185,7 +185,7 @@ va 0xFFFFE000 pte 0x21FD08C7 pa 0x87F42000 perm 0xC7
         Valid: 1
 
 va 0xFFFFF000 pte 0x2000184B pa 0x80006000 perm 0x4B   
-    Contains:
+    Contains: Trampoline
     Permission Bits: 4B -> 0100 1011
         Execute: 1
         Write: 0
@@ -216,3 +216,106 @@ page table 0x0000000087f22000
  .. .. ..0xffffffffffffe000: pte 0x0000000021fd00c7 pa 0x0000000087f40000
  .. .. ..0xfffffffffffff000: pte 0x000000002000184b pa 0x0000000080006000
 
+
+
+page table 0x0000000087f22000 
+
+
+ ..0x0000000000000000: pte 0x0000000021fc7801 pa 0x0000000087f1e000
+    Contains: guard
+    Permission Bits: 01 -> 0000 0001
+        Execute: 0
+        Write: 0
+        Read: 0
+        Valid: 1
+
+ .. ..0x0000000000000000: pte 0x0000000021fc7401 pa 0x0000000087f1d000
+    Contains: guard
+    Permission Bits: 01 -> 0000 0001
+        Execute: 0
+        Write: 0
+        Read: 0
+        Valid: 1
+
+ .. .. ..0x0000000000000000: pte 0x0000000021fc7c5b pa 0x0000000087f1f000
+    Contains: Code
+    Permission Bits: 5B -> 0101 1011
+        Execute: 1
+        Write: 0
+        Read: 1
+        Valid: 1
+
+ .. .. ..0x0000000000001000: pte 0x0000000021fc701b pa 0x0000000087f1c000
+    Contains: Code
+    Permission Bits: 1B -> 0001 1011
+        Execute: 1
+        Write: 0
+        Read: 1
+        Valid: 1
+
+ .. .. ..0x0000000000002000: pte 0x0000000021fc6cd7 pa 0x0000000087f1b000
+    Contains: Guard
+    Permission Bits: d7 -> 1101 0111
+        Execute: 0
+        Write: 1
+        Read: 1
+        Valid: 1
+
+ .. .. ..0x0000000000003000: pte 0x0000000021fc6807 pa 0x0000000087f1a000
+    Contains: Heap
+    Permission Bits: 07 -> 0000 0111
+        Execute: 0
+        Write: 1
+        Read: 1
+        Valid: 1
+
+ .. .. ..0x0000000000004000: pte 0x0000000021fc64d7 pa 0x0000000087f19000
+    Contains: Stack
+    Permission Bits: d7 -> 1101 0111
+        Execute: 0
+        Write: 1
+        Read: 1
+        Valid: 1
+
+ ..0xffffffffc0000000: pte 0x0000000021fc8401 pa 0x0000000087f21000
+    Contains: guard
+    Permission Bits: 01 -> 0000 0001
+        Execute: 0
+        Write: 0
+        Read: 0
+        Valid: 1
+
+ .. ..0xffffffffffe00000: pte 0x0000000021fc8001 pa 0x0000000087f20000
+    Contains: guard
+    Permission Bits: 01 -> 0000 0001
+        Execute: 0
+        Write: 0
+        Read: 0
+        Valid: 1
+
+ .. .. ..0xffffffffffffd000: pte 0x0000000021fd4c13 pa 0x0000000087f53000
+    Contains: guard
+    Permission Bits: 13 -> 0001 0011
+        Execute: 0
+        Write: 0
+        Read: 1
+        Valid: 1
+
+ .. .. ..0xffffffffffffe000: pte 0x0000000021fd00c7 pa 0x0000000087f40000
+    Contains: Trapframe
+    Permission Bits: c7 -> 1100 0111
+        Execute: 0
+        Write: 1
+        Read: 1
+        Valid: 1
+
+ .. .. ..0xfffffffffffff000: pte 0x000000002000184b pa 0x0000000080006000
+    Contains: Trampoline
+    Permission Bits: 4B -> 0100 1011
+        Execute: 1
+        Write: 0
+        Read: 1
+        Valid: 1
+
+It seems to be in a different order and have different amounts
+of pages of code. I am not sure if added code updated this or not.
