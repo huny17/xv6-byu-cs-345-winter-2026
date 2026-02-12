@@ -489,26 +489,35 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 #ifdef LAB_PGTBL
 
-// void
-// vmprint_helper(){
-  
-// }
+void
+vmprint_helper(pagetable_t pagetable, int depth, uint64 old_va){
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    uint64 va = (old_va | (i << PXSHIFT(depth)));
+    if(pte & PTE_V){ //if valid
+      for(int i = 2; i >= depth; i--){
+        printf(" ..");
+      }
+      if(!(PTE_LEAF(pte))){ //is not leaf
+        uint64 next_table = PTE2PA(pte);
+        printf("%p: pte %p pa %p\n", (void*)va, (void*)pte, (void*)PTE2PA(pte));
+        if(depth > 0){
+          vmprint_helper((pagetable_t)next_table, depth-1, va);
+        }
+      }
+      else{
+        printf("%p: pte %p pa %p\n", (void*)va, (void*)pte, (void*)PTE2PA(pte));
+      }
+    }
+  }
+}
+
+
 
 void
 vmprint(pagetable_t pagetable) { //my code 
-  printf("page table %p", pagetable);
-  for(int i = 0; i < 512; i++){
-    pte_t pte = pagetable[i];
-    if(*pte & PTE_V){
-
-      if(!(PTE_LEAF(pte))){ //is not leaf?
-        uint64 next_table = PTE2PA(pte);
-        vmprint(next_table) 
-      }
-        print("%s", depth)
-        printf("%p: pte %p pa %p\n", va, pte, PTE2PA(pte));
-    }
-  }
+  printf("page table %p \n", pagetable);
+  vmprint_helper(pagetable, 2, 0);
 }
 
 #endif
