@@ -199,4 +199,20 @@ Which other xv6 system call(s) could be made faster using this shared page? Expl
     I could see wait() being sped up using this process. It could wait and the get the child process's
     PID from a saved memory instead of searching through and waiting.
 
- 
+ ---Print a page table (easy)---
+
+print_kpgtbl starting
+page table 0x0000000087f22000 
+ ..0x0000000000000000: pte 0x0000000021fc7801 pa 0x0000000087f1e000
+ .. ..0x0000000000000000: pte 0x0000000021fc7401 pa 0x0000000087f1d000
+ .. .. ..0x0000000000000000: pte 0x0000000021fc7c5b pa 0x0000000087f1f000
+ .. .. ..0x0000000000001000: pte 0x0000000021fc701b pa 0x0000000087f1c000
+ .. .. ..0x0000000000002000: pte 0x0000000021fc6cd7 pa 0x0000000087f1b000
+ .. .. ..0x0000000000003000: pte 0x0000000021fc6807 pa 0x0000000087f1a000
+ .. .. ..0x0000000000004000: pte 0x0000000021fc64d7 pa 0x0000000087f19000
+ ..0xffffffffc0000000: pte 0x0000000021fc8401 pa 0x0000000087f21000
+ .. ..0xffffffffffe00000: pte 0x0000000021fc8001 pa 0x0000000087f20000
+ .. .. ..0xffffffffffffd000: pte 0x0000000021fd4c13 pa 0x0000000087f53000
+ .. .. ..0xffffffffffffe000: pte 0x0000000021fd00c7 pa 0x0000000087f40000
+ .. .. ..0xfffffffffffff000: pte 0x000000002000184b pa 0x0000000080006000
+
