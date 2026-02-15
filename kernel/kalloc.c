@@ -80,3 +80,119 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+
+//my code
+#ifdef LAB_PGTBL
+void
+superfree(void *pa)
+{
+  struct run *r;
+
+  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+    panic("superfree");
+
+  // Fill with junk to catch dangling refs.
+  memset(pa, 1, PGSIZE);
+
+  r = (struct run*)pa;
+
+  acquire(&kmem.lock);
+  r->next = kmem.freelist;
+  kmem.freelist = r;
+  release(&kmem.lock);
+}
+
+
+void
+remove(struct run *r){
+  acquire(&kmem.lock);
+  for(i = 0; i < 512; i++){
+    inlist = kmem.freelist;
+    address = r + i*PGSIZE;
+    prev = NULL;
+    while(inlist != NULL){
+      if(address == inlist){
+        if(address == kmem.freelist){
+          kmem.freelist = kmem.freelist->next;
+          break;
+        }
+        prev->next = address->next;
+        break;
+      }
+      prev = inlist;
+      inlist = inlist->next;
+    }  
+  }
+  release(&kmem.lock);
+}
+
+
+bool
+checkfree(struct run *r){
+  bool flag;
+  for(i = 1; i < 512; i++){ // check following 511 pages in phys mem are free
+    flag = false;
+    address = r + i*PGSIZE;
+    inlist = kmem.freelist;
+
+    while(inlist != NULL){
+      if(address == inlist){
+        flag = true;
+        break;
+      }
+      inlist = inlist->next
+    }
+    if(flag == false){
+      break;
+    }                 
+  }
+  return flag;
+}
+
+
+void *
+superalloc(void)
+{
+  struct run *r;
+  int i;
+  bool flag;
+
+  acquire(&kmem.lock);
+  start = kmem.freelist;
+  r = kmem.freelist;
+  
+  while(r != NULL){
+    
+    if(r % SUPERPGSIZE == 0){
+      
+      if(checkfree(r)){
+        remove(r);
+      }
+
+    }
+      //if hit bottom
+    //return null
+    r = r->next;
+  }
+
+  release(&kmem.lock);
+
+  if(r)
+  memset((char*)r, 5, SUPERPGSIZE); // fill with junk
+
+  return (void*)r;
+}
+#endif
+
+//Lock the freelist.
+
+// Search for a 2MB-aligned free page.
+
+// Verify the next 511 pages exist and are free.
+
+// Remove those 512 pages from the freelist.
+
+// Return the starting address.
+
+// Fill the entire 2MB with junk.

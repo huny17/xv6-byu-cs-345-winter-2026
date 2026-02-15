@@ -36,10 +36,10 @@ sys_wait(void)
 }
 
 uint64
-sys_sbrk(void)
+sys_sbrk(void) //edit?
 {
   uint64 addr;
-  int n;
+  int n;        //if statment to check page size
 
   argint(0, &n);
   addr = myproc()->sz;
