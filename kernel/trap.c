@@ -36,6 +36,13 @@ trapinithart(void)
 void
 usertrap(void)
 {
+  //Modify usertrap() to recognize page faults. When a write page-fault 
+  //occurs on a COW page (a page that was originally writeable), 
+  //allocate a new page with kalloc(), copy the old page to the new 
+  //page, and install the new page in the PTE with PTE_W set. 
+  //Pages that were originally read-only (not mapped PTE_W, like pages in 
+  //the text segment) should remain read-only and shared between parent and 
+  //child; a process that tries to write such a page should be killed.
   int which_dev = 0;
 
   if((r_sstatus() & SSTATUS_SPP) != 0)
