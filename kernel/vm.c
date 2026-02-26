@@ -321,7 +321,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
   uint flags;
   char *mem;
 
-  for(i = 0; i < sz; i += PGSIZE){
+  for(i = 0; i < sz; i += PGSIZE){ //walk entire process one page at a time
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
@@ -330,13 +330,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
     flags = PTE_FLAGS(*pte);
 
 
-    if((mem = kalloc()) == 0)
-      goto err;
-    
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
-    }
+    if((*pte & PTE_W) != 0)
+      flags = flags & ~PTE_W; //remove write
+      flags = flags | PTE_R; //update to read
+      flags = flags | PTE_COW; //add cow
+      pa = pa | flags; //updating phys address
 
     /*
     if((mem = kalloc()) == 0)
