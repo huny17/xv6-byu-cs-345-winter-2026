@@ -320,6 +320,10 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
   uint64 pa, i;
   uint flags;
   char *mem;
+  uint updated_flags;
+  uint64 updated_pa;
+  pte_t *new_pte;
+  int ref_count;
 
   for(i = 0; i < sz; i += PGSIZE){ //walk entire process one page at a time
     if((pte = walk(old, i, 0)) == 0)
@@ -330,13 +334,23 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
     flags = PTE_FLAGS(*pte);
 
 
-    if((*pte & PTE_W) != 0)
-      flags = flags & ~PTE_W; //remove write
-      flags = flags | PTE_R; //update to read
-      flags = flags | PTE_COW; //add cow
-      pa = pa | flags; //updating phys address
-
-    /*
+    if((*pte & PTE_W) != 0){
+      updated_flags = flags & ~PTE_W; //remove write
+      updated_flags = updated_flags | PTE_R; //update to read
+      updated_flags = updated_flags | PTE_COW; //add cow
+      updated_pa = pa | flags; //updating phys address
+      
+      new_pte = PA2PTE(updated_pa); //making PTE from new pa
+      //VA = i
+      new[i] = *new_pte; //setting child va to new pa in pte
+      old[i] = *new_pte; //setting parent va to new pa in pte
+      ref_count+=1;      //increment ref count of shared phys page
+    }
+    else{
+    new[i] = *pte;
+    old[i] = *pte;
+    }
+      /*
     if((mem = kalloc()) == 0)
       goto err;
     memmove(mem, (char*)pa, PGSIZE);
