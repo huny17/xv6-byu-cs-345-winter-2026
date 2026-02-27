@@ -338,17 +338,17 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
       updated_flags = flags & ~PTE_W; //remove write
       updated_flags = updated_flags | PTE_R; //update to read
       updated_flags = updated_flags | PTE_COW; //add cow
-      updated_pa = pa | flags; //updating phys address
+      updated_pa = pa | updated_flags; //updating phys address
       
-      new_pte = PA2PTE(updated_pa); //making PTE from new pa
+      //new_pte = PA2PTE(updated_pa); //making PTE from new pa
+      
       //VA = i
-      new[i] = *new_pte; //setting child va to new pa in pte
-      old[i] = *new_pte; //setting parent va to new pa in pte
+      new_pte = walk(new, i, 0); //setting child va to new pa in pte
+      *pte = PA2PTE(updated_pa); //setting parent va to new pa in pte
       ref_count+=1;      //increment ref count of shared phys page
     }
     else{
-    new[i] = *pte;
-    old[i] = *pte;
+      *new_pte = walk(new, i, 0); //setting child va to new pa in pte 
     }
       /*
     if((mem = kalloc()) == 0)
