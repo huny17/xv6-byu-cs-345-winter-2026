@@ -79,7 +79,7 @@ usertrap(void)
   }
   else if (r_scause() == 15 || r_scause() == 13){
       pagetable_t page = p->pagetable;
-      pte_t pte = walk(page, r_sepc(), 0);
+      pte_t pte = *walk(page, r_sepc(), 0);
 
       if(pte & ~PTE_COW){//not cow
         printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);

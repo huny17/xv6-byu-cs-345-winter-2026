@@ -41,6 +41,20 @@ freerange(void *pa_start, void *pa_end)
     kfree(p);
 }
 
+//my code
+void
+update_ref_count(uint pa, int sign){
+  uint index = (pa-KERNBASE)/PGSIZE;
+
+  if (sign == 1){
+  ref_count[index] += 1; 
+  }
+  else if(sign == 0){
+  ref_count[index] -= 1;  
+  }
+
+}
+
 // Free the page of physical memory pointed at by pa,
 // which normally should have been returned by a
 // call to kalloc().  (The exception is when
@@ -59,10 +73,10 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  update_ref_count(pa, 0);
+  update_ref_count((uint64)pa, 0);
 
   acquire(&kmem.lock);
-  if(ref_count[((uint)pa-KERNBASE/PGSIZE)] == 0){
+  if(ref_count[((uint64)pa-KERNBASE/PGSIZE)] == 0){
     r->next = kmem.freelist;
     kmem.freelist = r;
   }
@@ -79,9 +93,10 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
     kmem.freelist = r->next;
-    update_ref_count(r, 1);
+    update_ref_count((uint64)r, 1);
+  }
   release(&kmem.lock);
 
   if(r)
@@ -92,16 +107,4 @@ kalloc(void)
 
 
 
-//my code
-void
-update_ref_count(uint pa, int sign){
-  uint index = (pa-KERNBASE)/PGSIZE;
 
-  if (sign == 1){
-  ref_count[index] += 1; 
-  }
-  else if(sign == 0){
-  ref_count[index] -= 1;  
-  }
-
-}

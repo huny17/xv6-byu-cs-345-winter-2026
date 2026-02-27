@@ -359,8 +359,6 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
   uint64 pa, i;
   uint flags;
   uint updated_flags;
-  pte_t *updated_pte;
-  pte_t *new_pte;
 
   for(i = 0; i < sz; i += PGSIZE){ //walk entire process one page at a time
     if((pte = walk(old, i, 0)) == 0)
@@ -429,7 +427,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
   pte_t *pte;
-  if(cow_fault_handler == 0){
+  if(cow_fault_handler(pagetable, dstva, *walk(pagetable, dstva, 0)) == 0){
     while(len > 0){
       va0 = PGROUNDDOWN(dstva);
       if(va0 >= MAXVA)
