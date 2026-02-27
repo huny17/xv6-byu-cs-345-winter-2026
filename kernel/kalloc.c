@@ -11,7 +11,7 @@
 
 void freerange(void *pa_start, void *pa_end);
 
-static int ref_count [];
+static int ref_count [(PHYSTOP-KERNBASE)/PGSIZE];
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
@@ -53,14 +53,19 @@ kfree(void *pa)
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
+
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
   r = (struct run*)pa;
 
+  update_ref_count(pa, 0);
+
   acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
+  if(ref_count[((uint)pa-KERNBASE/PGSIZE)] == 0){
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  }
   release(&kmem.lock);
 }
 
@@ -76,17 +81,27 @@ kalloc(void)
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
+    update_ref_count(r, 1);
   release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+    //increment ref count
   return (void*)r;
 }
 
 
 
 //my code
-arr []
-update_ref_count(){
-  
+void
+update_ref_count(uint pa, int sign){
+  uint index = (pa-KERNBASE)/PGSIZE;
+
+  if (sign == 1){
+  ref_count[index] += 1; 
+  }
+  else if(sign == 0){
+  ref_count[index] -= 1;  
+  }
+
 }

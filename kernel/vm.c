@@ -311,9 +311,34 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 //and fault if the sanity checks fail.
 //Is the fault a write fault? Is the faulting address legal? 
 //Is there a PTE for the faulting address? Is it a COW page? 
-void
-cow_fault_handler(){
+int
+cow_fault_handler(pagetable_t table, uint64 va, pte_t pte){
+  uint flags;
+  uint updated_flags;
+  uint64 pa;
 
+  if(pte & PTE_COW){
+
+    pa = PTE2PA(pte);
+    flags = PTE_FLAGS(pte);
+
+    updated_flags = flags & ~PTE_R; //remove read
+    updated_flags = updated_flags | PTE_W; //update to write
+    
+    if(mappages(table, va, PGSIZE, pa, updated_flags) != 0){
+      goto err;
+    }
+    mappages(table, va, PGSIZE, pa, updated_flags); //adds to table?
+
+    return 0;
+  }
+  else{
+    return -1;
+  }
+
+ err:
+  uvmunmap(table, 0, va / PGSIZE, 1);
+  return -1;
 }
 
 
@@ -333,7 +358,6 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
   uint updated_flags;
   pte_t *updated_pte;
   pte_t *new_pte;
@@ -355,14 +379,14 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
         goto err;
       }
       mappages(new, i, PGSIZE, pa, updated_flags); //adds to table?
-      ref_count+=1; //increment ref count of shared phys page
+      update_ref_count(pa, 1); //increment ref count of shared phys page
     }
     else{
       if(mappages(new, i, PGSIZE, pa, flags) != 0){ //replace mem
         goto err;
       }
       mappages(new, i, PGSIZE, pa, flags); //setting child va to new pa in pte 
-      ref_count+=1;
+      update_ref_count(pa, 1);
     }
 
   }
