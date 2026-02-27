@@ -11,6 +11,8 @@
 
 void freerange(void *pa_start, void *pa_end);
 
+static int ref_count [];
+
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
@@ -79,4 +81,12 @@ kalloc(void)
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+
+
+//my code
+arr []
+update_ref_count(){
+  
 }

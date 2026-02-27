@@ -303,6 +303,20 @@ uvmfree(pagetable_t pagetable, uint64 sz)
   freewalk(pagetable);
 }
 
+//my code
+
+//Avoid implementing COW trap handling in usertrap(). 
+//Create a new function that handles this (optionally in vm.c).
+//This function should sanity check the fault before working on COW handling, 
+//and fault if the sanity checks fail.
+//Is the fault a write fault? Is the faulting address legal? 
+//Is there a PTE for the faulting address? Is it a COW page? 
+void
+cow_fault_handler(){
+
+}
+
+
 // Given a parent process's page table, copy
 // its memory into a child's page table.
 // Copies both the page table and the
@@ -321,9 +335,8 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
   uint flags;
   char *mem;
   uint updated_flags;
-  uint64 updated_pa;
+  pte_t *updated_pte;
   pte_t *new_pte;
-  int ref_count;
 
   for(i = 0; i < sz; i += PGSIZE){ //walk entire process one page at a time
     if((pte = walk(old, i, 0)) == 0)
@@ -333,23 +346,32 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
 
-
     if((*pte & PTE_W) != 0){
       updated_flags = flags & ~PTE_W; //remove write
       updated_flags = updated_flags | PTE_R; //update to read
       updated_flags = updated_flags | PTE_COW; //add cow
-      updated_pa = pa | updated_flags; //updating phys address
       
-      //new_pte = PA2PTE(updated_pa); //making PTE from new pa
-      
-      //VA = i
-      new_pte = walk(new, i, 0); //setting child va to new pa in pte
-      *pte = PA2PTE(updated_pa); //setting parent va to new pa in pte
-      ref_count+=1;      //increment ref count of shared phys page
+      if(mappages(new, i, PGSIZE, pa, updated_flags) != 0){ //replace mem
+        goto err;
+      }
+      mappages(new, i, PGSIZE, pa, updated_flags); //adds to table?
+      ref_count+=1; //increment ref count of shared phys page
     }
     else{
-      *new_pte = walk(new, i, 0); //setting child va to new pa in pte 
+      if(mappages(new, i, PGSIZE, pa, flags) != 0){ //replace mem
+        goto err;
+      }
+      mappages(new, i, PGSIZE, pa, flags); //setting child va to new pa in pte 
+      ref_count+=1;
     }
+
+  }
+  return 0;
+
+ err:
+  uvmunmap(new, 0, i / PGSIZE, 1);
+  return -1;
+}
       /*
     if((mem = kalloc()) == 0)
       goto err;
@@ -359,13 +381,8 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
       goto err;
     }
       */
-  }
-  return 0;
-
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
-}
+      //new_pte = PA2PTE(updated_pa); //making PTE from new pa
+      //*pte = PA2PTE(updated_pa); //setting parent va to new pa in pte
 
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
