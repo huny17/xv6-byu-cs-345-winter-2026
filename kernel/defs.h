@@ -64,6 +64,7 @@ void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
 void            update_ref_count(uint, int);
+static int ref_count [(PHYSTOP-KERNBASE)/PGSIZE];
 
 // log.c
 void            initlog(int, struct superblock*);
