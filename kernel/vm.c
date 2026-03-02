@@ -316,27 +316,53 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t pte){
   uint flags;
   uint updated_flags;
   uint64 pa;
+  uint64 new_pa;
+  pagetable_t kpgtbl;
 
   if(pte & PTE_COW){
     pa = PTE2PA(pte);
     flags = PTE_FLAGS(pte);
 
     if(ref_count[(pa-KERNBASE/PGSIZE)] > 1){
-
-      updated_flags = updated_flags | PTE_W; //update to write
+      updated_flags = flags | PTE_W; //update to write
+      updated_flags = updated_flags & ~PTE_COW; //remove cow
       
+      //Allocate a new physical page
+      kpgtbl = (pagetable_t) kalloc();
+      memset(kpgtbl, 0, PGSIZE);
+      //Copy the contents from the old page into the new one
+      
+      //Decrement the old page’s ref count
+      
+      //Map the new page as writable
+      
+      if(mappages(kpgtbl, va, PGSIZE, pa, updated_flags) != 0){
+        goto err;
+      }
+
+      kfree((void*)pa);
+
+      
+      return 0;
+    
+    }
+    else if(ref_count[(pa-KERNBASE)/PGSIZE] == 1){
+      updated_flags = flags | PTE_W; //update to write
+      updated_flags = updated_flags & ~PTE_COW; //remove cow
       if(mappages(table, va, PGSIZE, pa, updated_flags) != 0){
         goto err;
       }
       return 0;
     }
+
   }
   else{
     return -1;
   }
 
  err:
-  uvmunmap(table, 0, va / PGSIZE, 1);
+  
+  //uvmunmap(table, 0, va / PGSIZE, 1);
   return -1;
 }
 
