@@ -45,19 +45,18 @@ freerange(void *pa_start, void *pa_end)
 void
 update_ref_count(uint pa, int sign){
   uint index = (pa-KERNBASE)/PGSIZE;
-
   if (sign == 1){
   ref_count[index] += 1; 
   }
   else if(sign == 0){
   ref_count[index] -= 1;  
   }
-
 }
 
 int
 get_ref_count(uint pa){
-  return ref_count[(pa-KERNBASE)/PGSIZE];
+  int count = ref_count[(pa-KERNBASE)/PGSIZE];
+  return count;
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -76,14 +75,11 @@ kfree(void *pa)
   memset(pa, 1, PGSIZE);
 
   r = (struct run*)pa;
-
-  acquire(&kmem.lock);
-  update_ref_count((uint64)pa, 0);
+  
   if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
     r->next = kmem.freelist;
     kmem.freelist = r;
   }
-  release(&kmem.lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -94,13 +90,11 @@ kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
   r = kmem.freelist;
   if(r){
     kmem.freelist = r->next;
     update_ref_count((uint64)r, 1);
   }
-  release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
@@ -109,5 +103,30 @@ kalloc(void)
 }
 
 
+void
+kfree_lock(void *pa)
+{
+  acquire(&kmem.lock);
+  kfree_unlock(pa);
+  release(&kmem.lock);
+}
 
+void *
+kalloc_lock(void)
+{
+  struct run *r;
+  acquire(&kmem.lock);
+  r = kalloc_unlock();
+  release(&kmem.lock);
+  return (void*)r;
+} 
 
+void
+check_if_zero(uint pa, int sign){
+  acquire(&kmem.lock);
+  update_ref_count(pa, sign);
+  if(get_ref_count(pa) == 0){
+    kfree_unlock((void*)pa);
+  }
+  release(&kmem.lock);
+}

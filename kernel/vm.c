@@ -324,6 +324,9 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
   if(va >= MAXVA){
       return -1;
   }
+  if(*pte & ~PTE_V){
+      return -1;
+  }
   if((*pte & PTE_COW) && (*pte & PTE_V)){
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
@@ -332,11 +335,10 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
       updated_flags = flags | PTE_W; //update to write
       updated_flags = updated_flags & ~PTE_COW; //remove cow
 
-      new_pa = (uint64)kalloc(); //Allocate a new physical page
+      new_pa = (uint64)kalloc_lock(); //Allocate a new physical page
+      memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
       mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
-      memmove((void *)pa, (const void *)new_pa, PGSIZE); //Copy the contents from the old page into the new one
-
-      kfree((void*)pa); //Decrement the old page’s ref count
+      check_if_zero(pa,0);
       return 0;
     }
     else if(get_ref_count(pa) == 1){
@@ -404,15 +406,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
   uvmunmap(new, 0, i / PGSIZE, 1);
   return -1;
 }
-      /*
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
-    }
-    */
+
 
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
@@ -436,12 +430,17 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   uint64 n, va0, pa0;
   pte_t *pte;
 
-  if((cow_fault_handler(pagetable, dstva, walk(pagetable, dstva, 0))) == 0){
+  if((cow_fault_handler(pagetable, dstva, walk(pagetable, dstva, 0))) == -1){
+    return -1;
+  }  
     while(len > 0){
       va0 = PGROUNDDOWN(dstva);
       if(va0 >= MAXVA)
         return -1;
       pte = walk(pagetable, va0, 0);
+      if((cow_fault_handler(pagetable, va0, pte)) == -1){
+        return -1;
+      }
       if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ||
         (*pte & PTE_W) == 0)
         return -1;
@@ -456,10 +455,6 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
       dstva = va0 + PGSIZE;
     }
     return 0;
-  }
-  else{
-    return -1;
-  }
 }
 
 // Copy from user to kernel.
