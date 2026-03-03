@@ -55,6 +55,11 @@ update_ref_count(uint pa, int sign){
 
 }
 
+int
+get_ref_count(uint pa){
+  return ref_count[(pa-KERNBASE)/PGSIZE];
+}
+
 // Free the page of physical memory pointed at by pa,
 // which normally should have been returned by a
 // call to kalloc().  (The exception is when

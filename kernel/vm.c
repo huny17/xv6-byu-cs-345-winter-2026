@@ -328,18 +328,18 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
 
-    if(ref_count[(pa-KERNBASE)/PGSIZE] > 1){
+    if(get_ref_count(pa) > 1){
       updated_flags = flags | PTE_W; //update to write
       updated_flags = updated_flags & ~PTE_COW; //remove cow
 
-      new_pa = kalloc(); //Allocate a new physical page
+      new_pa = (uint64)kalloc(); //Allocate a new physical page
       mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
-      memmove(pa, new_pa, PGSIZE); //Copy the contents from the old page into the new one
+      memmove((void *)pa, (const void *)new_pa, PGSIZE); //Copy the contents from the old page into the new one
 
       kfree((void*)pa); //Decrement the old page’s ref count
       return 0;
     }
-    else if(ref_count[(pa-KERNBASE)/PGSIZE] == 1){
+    else if(get_ref_count(pa) == 1){
       updated_flags = flags | PTE_W; //update to write
       updated_flags = updated_flags & ~PTE_COW; //remove cow
       mappages(table, va, PGSIZE, pa, updated_flags);
@@ -350,6 +350,7 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
   else{
     return -1;
   }
+  return 0;
 }
 
 
@@ -434,7 +435,8 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
   pte_t *pte;
-  if(cow_fault_handler(pagetable, dstva, *walk(pagetable, dstva, 0)) == 0){
+
+  if((cow_fault_handler(pagetable, dstva, walk(pagetable, dstva, 0))) == 0){
     while(len > 0){
       va0 = PGROUNDDOWN(dstva);
       if(va0 >= MAXVA)
