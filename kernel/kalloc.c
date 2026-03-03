@@ -11,7 +11,7 @@
 
 void freerange(void *pa_start, void *pa_end);
 
-static int ref_count [(PHYSTOP-KERNBASE)/PGSIZE];
+static int ref_count [(PHYSTOP-KERNBASE)/PGSIZE]; //cleaner to make get func
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.

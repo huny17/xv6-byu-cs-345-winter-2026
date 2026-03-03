@@ -73,27 +73,21 @@ usertrap(void)
 
     syscall();
 
-    //my code
-    //15 = store/amo page faults
-    //13 = load page faults
-  }
-  else if (r_scause() == 15 || r_scause() == 13){
-      pagetable_t page = p->pagetable;
-      pte_t pte = *walk(page, r_sepc(), 0);
-
-      if(pte & ~PTE_COW){//not cow
-        printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
-        printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
-        setkilled(p);
-        //decrement reference count?
-      }
-      else{
-        cow_fault_handler(page, r_sepc(), pte); //returns int
-      }
   }
   else if((which_dev = devintr()) != 0){
     // ok
   } 
+    //my code
+    //15 = store/amo page faults
+  else if (r_scause() == 15){ //only want write page fault
+      pagetable_t page = p->pagetable;
+      pte_t *pte = walk(page, r_stval(), 0);
+      if(cow_fault_handler(page, r_stval(), *pte) == -1){
+          printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+          printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
+          setkilled(p);
+      } 
+  }
   else {
     printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
     printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());

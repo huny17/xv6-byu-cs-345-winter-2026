@@ -312,46 +312,37 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 //Is the fault a write fault? Is the faulting address legal? 
 //Is there a PTE for the faulting address? Is it a COW page? 
 int
-cow_fault_handler(pagetable_t table, uint64 va, pte_t pte){
+cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
   uint flags;
   uint updated_flags;
   uint64 pa;
   uint64 new_pa;
-  pagetable_t kpgtbl;
 
-  if(pte & PTE_COW){
-    pa = PTE2PA(pte);
-    flags = PTE_FLAGS(pte);
+  if(r_scause() == 13){//13 = load page faults
+      return -1;//panic
+  }
+  if(va >= MAXVA){
+      return -1;
+  }
+  if((*pte & PTE_COW) && (*pte & PTE_V)){
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
 
-    if(ref_count[(pa-KERNBASE/PGSIZE)] > 1){
+    if(ref_count[(pa-KERNBASE)/PGSIZE] > 1){
       updated_flags = flags | PTE_W; //update to write
       updated_flags = updated_flags & ~PTE_COW; //remove cow
-      
-      //Allocate a new physical page
-      kpgtbl = (pagetable_t) kalloc();
-      memset(kpgtbl, 0, PGSIZE);
-      //Copy the contents from the old page into the new one
-      
-      //Decrement the old page’s ref count
-      
-      //Map the new page as writable
-      
-      if(mappages(kpgtbl, va, PGSIZE, pa, updated_flags) != 0){
-        goto err;
-      }
 
-      kfree((void*)pa);
+      new_pa = kalloc(); //Allocate a new physical page
+      mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
+      memmove(pa, new_pa, PGSIZE); //Copy the contents from the old page into the new one
 
-      
+      kfree((void*)pa); //Decrement the old page’s ref count
       return 0;
-    
     }
     else if(ref_count[(pa-KERNBASE)/PGSIZE] == 1){
       updated_flags = flags | PTE_W; //update to write
       updated_flags = updated_flags & ~PTE_COW; //remove cow
-      if(mappages(table, va, PGSIZE, pa, updated_flags) != 0){
-        goto err;
-      }
+      mappages(table, va, PGSIZE, pa, updated_flags);
       return 0;
     }
 
@@ -359,11 +350,6 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t pte){
   else{
     return -1;
   }
-
- err:
-  
-  //uvmunmap(table, 0, va / PGSIZE, 1);
-  return -1;
 }
 
 
