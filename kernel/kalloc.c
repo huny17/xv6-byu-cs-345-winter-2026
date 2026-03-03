@@ -107,7 +107,7 @@ void
 kfree_lock(void *pa)
 {
   acquire(&kmem.lock);
-  kfree_unlock(pa);
+  kfree(pa);
   release(&kmem.lock);
 }
 
@@ -116,17 +116,17 @@ kalloc_lock(void)
 {
   struct run *r;
   acquire(&kmem.lock);
-  r = kalloc_unlock();
+  r = kalloc();
   release(&kmem.lock);
   return (void*)r;
 } 
 
 void
-check_if_zero(uint pa, int sign){
+check_if_zero(uint64 pa, int sign){
   acquire(&kmem.lock);
   update_ref_count(pa, sign);
   if(get_ref_count(pa) == 0){
-    kfree_unlock((void*)pa);
+    kfree((void *) pa);
   }
   release(&kmem.lock);
 }

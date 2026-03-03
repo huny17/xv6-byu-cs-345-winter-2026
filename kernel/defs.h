@@ -67,7 +67,7 @@ void            update_ref_count(uint, int);
 int             get_ref_count(uint);
 void*           kalloc_lock(void);
 void            kfree_lock(void *);
-void            check_if_zero(uint, int);
+void            check_if_zero(uint64, int);
 
 
 // log.c
