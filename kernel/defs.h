@@ -68,7 +68,8 @@ int             get_ref_count(uint);
 void*           kalloc_lock(void);
 void            kfree_lock(void *);
 void            check_if_zero(uint64, int);
-
+int             update(pagetable_t, uint64, pte_t *, uint64, uint);
+void            lock_update_ref_count(uint, int);
 
 // log.c
 void            initlog(int, struct superblock*);

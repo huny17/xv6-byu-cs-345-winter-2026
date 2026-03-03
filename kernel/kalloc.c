@@ -121,6 +121,7 @@ kalloc_lock(void)
   return (void*)r;
 } 
 
+
 void
 check_if_zero(uint64 pa, int sign){
   acquire(&kmem.lock);
@@ -130,3 +131,37 @@ check_if_zero(uint64 pa, int sign){
   }
   release(&kmem.lock);
 }
+
+void
+lock_update_ref_count(uint pa, int sign){
+    acquire(&kmem.lock);
+    update_ref_count(pa,sign);
+    release(&kmem.lock);
+}
+
+
+int 
+update(pagetable_t table, uint64 va, pte_t *pte, uint64 pa, uint flags){
+  uint updated_flags;
+  uint64 new_pa;
+  acquire(&kmem.lock);
+  if(get_ref_count(pa) > 1){
+      updated_flags = flags | PTE_W; //update to write
+      updated_flags = updated_flags & ~PTE_COW; //remove cow
+
+      new_pa = (uint64)kalloc(); //Allocate a new physical page
+      memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
+      mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
+      update_ref_count(pa, 0);
+      if(get_ref_count(pa) == 0){
+        kfree((void *) pa);
+  }
+    }
+    else if(get_ref_count(pa) == 1){
+      updated_flags = flags | PTE_W; //update to write
+      updated_flags = updated_flags & ~PTE_COW; //remove cow
+      mappages(table, va, PGSIZE, pa, updated_flags);
+    }
+    release(&kmem.lock);
+    return 0;
+  }

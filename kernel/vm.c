@@ -314,9 +314,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 int
 cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
   uint flags;
-  uint updated_flags;
   uint64 pa;
-  uint64 new_pa;
 
   if(r_scause() == 13){//13 = load page faults
       return -1;//panic
@@ -330,7 +328,7 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
   if((*pte & PTE_COW) && (*pte & PTE_V)){
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-
+/*
     if(get_ref_count(pa) > 1){
       updated_flags = flags | PTE_W; //update to write
       updated_flags = updated_flags & ~PTE_COW; //remove cow
@@ -347,7 +345,10 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
       mappages(table, va, PGSIZE, pa, updated_flags);
       return 0;
     }
-
+*/
+    if(update(table, va, pte, pa, flags) == 0){
+      return 0;
+    }
   }
   else{
     return -1;
@@ -390,13 +391,13 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
       if(mappages(new, i, PGSIZE, pa, updated_flags) != 0){ //increment ref count of shared phys page
         goto err;
       }
-      update_ref_count(pa, 1); 
+      lock_update_ref_count(pa, 1); 
     }
     else{
       if(mappages(new, i, PGSIZE, pa, flags) != 0){ //setting child va to new pa in pte 
         goto err;
       }
-      update_ref_count(pa, 1);
+      lock_update_ref_count(pa, 1);
     }
 
   }
