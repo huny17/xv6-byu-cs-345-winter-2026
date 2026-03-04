@@ -160,8 +160,10 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
+      /*
     if(*pte & PTE_V)
       panic("mappages: remap");
+      */
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
@@ -322,31 +324,10 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
   if(va >= MAXVA){
       return -1;
   }
-  if(*pte & ~PTE_V){
-      return -1;
-  }
   if((*pte & PTE_COW) && (*pte & PTE_V)){
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-/*
-    if(get_ref_count(pa) > 1){
-      updated_flags = flags | PTE_W; //update to write
-      updated_flags = updated_flags & ~PTE_COW; //remove cow
-
-      new_pa = (uint64)kalloc_lock(); //Allocate a new physical page
-      memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
-      mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
-      check_if_zero(pa,0);
-      return 0;
-    }
-    else if(get_ref_count(pa) == 1){
-      updated_flags = flags | PTE_W; //update to write
-      updated_flags = updated_flags & ~PTE_COW; //remove cow
-      mappages(table, va, PGSIZE, pa, updated_flags);
-      return 0;
-    }
-*/
-    if(update(table, va, pte, pa, flags) == 0){
+    if(update(table, PGROUNDDOWN((uint64)va), pte, pa, flags) == 0){
       return 0;
     }
   }
@@ -363,13 +344,15 @@ cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
 // physical memory.
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
-int
-uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
-{
+
   //Modify uvmcopy() to map the parent's physical pages 
   //into the child, instead of allocating new pages. 
   //Clear PTE_W in the PTEs of both child and parent for 
   //pages that have PTE_W set.
+
+int
+uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
+{
   pte_t *pte;
   uint64 pa, i;
   uint flags;
@@ -387,6 +370,12 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
       updated_flags = flags & ~PTE_W; //remove write
       updated_flags = updated_flags | PTE_R; //update to read
       updated_flags = updated_flags | PTE_COW; //add cow
+
+      //printf("old pte: %lx\n", *pte);  
+
+      *pte = PA2PTE(pa)| updated_flags; //update old table
+
+      printf("new old pte: %lx\n", *pte);
       
       if(mappages(new, i, PGSIZE, pa, updated_flags) != 0){ //increment ref count of shared phys page
         goto err;
@@ -431,17 +420,17 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   uint64 n, va0, pa0;
   pte_t *pte;
 
-  if((cow_fault_handler(pagetable, dstva, walk(pagetable, dstva, 0))) == -1){
-    return -1;
-  }  
+  // if((cow_fault_handler(pagetable, dstva, walk(pagetable, dstva, 0))) == -1){
+  //   return -1;
+  // }  
     while(len > 0){
       va0 = PGROUNDDOWN(dstva);
       if(va0 >= MAXVA)
         return -1;
       pte = walk(pagetable, va0, 0);
-      if((cow_fault_handler(pagetable, va0, pte)) == -1){
-        return -1;
-      }
+      // if((cow_fault_handler(pagetable, va0, pte)) == -1){
+      //   return -1;
+      // }
       if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ||
         (*pte & PTE_W) == 0)
         return -1;

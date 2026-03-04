@@ -145,6 +145,8 @@ update(pagetable_t table, uint64 va, pte_t *pte, uint64 pa, uint flags){
   uint updated_flags;
   uint64 new_pa;
   acquire(&kmem.lock);
+  if(get_ref_count(pa) == 0){
+    kfree((void *) pa);
   if(get_ref_count(pa) > 1){
       updated_flags = flags | PTE_W; //update to write
       updated_flags = updated_flags & ~PTE_COW; //remove cow
@@ -153,8 +155,6 @@ update(pagetable_t table, uint64 va, pte_t *pte, uint64 pa, uint flags){
       memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
       mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
       update_ref_count(pa, 0);
-      if(get_ref_count(pa) == 0){
-        kfree((void *) pa);
   }
     }
     else if(get_ref_count(pa) == 1){

@@ -84,12 +84,14 @@ usertrap(void)
       pte_t *pte = walk(page, r_stval(), 0);
       if(cow_fault_handler(page, r_stval(), pte) == -1){
           printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+          panic("cow1");
           printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
           setkilled(p);
       } 
   }
   else {
     printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+    panic("cow2");
     printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
     setkilled(p);
   }
