@@ -314,24 +314,36 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 //Is the fault a write fault? Is the faulting address legal? 
 //Is there a PTE for the faulting address? Is it a COW page? 
 int
-cow_fault_handler(pagetable_t table, uint64 va, pte_t *pte){
+cow_fault_handler(pagetable_t table, uint64 va){
   uint flags;
   uint64 pa;
 
+  pte_t *pte = walk(table, r_stval(), 0);
+  printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
+
+
+  printf("%s %d\n", __FILE__, __LINE__);
   if(r_scause() == 13){//13 = load page faults
+    printf("%s %d\n", __FILE__, __LINE__);
       return -1;//panic
   }
   if(va >= MAXVA){
+    printf("%s %d\n", __FILE__, __LINE__);
       return -1;
   }
   if((*pte & PTE_COW) && (*pte & PTE_V)){
+    printf("%s %d\n", __FILE__, __LINE__);
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
+    printf("%s %d\n", __FILE__, __LINE__);
+    printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
     if(update(table, PGROUNDDOWN((uint64)va), pte, pa, flags) == 0){
+      printf("%s %d\n", __FILE__, __LINE__);
       return 0;
     }
   }
   else{
+    printf("%s %d\n", __FILE__, __LINE__);
     return -1;
   }
   return 0;
@@ -375,7 +387,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)//modify
 
       *pte = PA2PTE(pa)| updated_flags; //update old table
 
-      printf("new old pte: %lx\n", *pte);
+      //printf("new old pte: %lx\n", *pte);
       
       if(mappages(new, i, PGSIZE, pa, updated_flags) != 0){ //increment ref count of shared phys page
         goto err;
@@ -420,17 +432,21 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   uint64 n, va0, pa0;
   pte_t *pte;
 
-  // if((cow_fault_handler(pagetable, dstva, walk(pagetable, dstva, 0))) == -1){
-  //   return -1;
-  // }  
+  if(*walk(pagetable, dstva, 0) & PTE_COW){
+    if((cow_fault_handler(pagetable, dstva)) == -1){
+      return -1;
+    }
+  }  
     while(len > 0){
       va0 = PGROUNDDOWN(dstva);
       if(va0 >= MAXVA)
         return -1;
       pte = walk(pagetable, va0, 0);
-      // if((cow_fault_handler(pagetable, va0, pte)) == -1){
-      //   return -1;
-      // }
+      if(*pte & PTE_COW){
+        if((cow_fault_handler(pagetable, va0)) == -1){
+          return -1;
+        }
+      }
       if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ||
         (*pte & PTE_W) == 0)
         return -1;

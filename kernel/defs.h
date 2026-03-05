@@ -63,13 +63,12 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
-void            update_ref_count(uint, int);
-int             get_ref_count(uint);
-void*           kalloc_lock(void);
+void            update_ref_count(uint64, int);
+int             get_ref_count(uint64);
+void*           kalloc_cow(void);
 void            kfree_lock(void *);
-void            check_if_zero(uint64, int);
 int             update(pagetable_t, uint64, pte_t *, uint64, uint);
-void            lock_update_ref_count(uint, int);
+void            lock_update_ref_count(uint64, int);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -180,7 +179,7 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
-int             cow_fault_handler(pagetable_t, uint64, pte_t *);
+int             cow_fault_handler(pagetable_t, uint64);
 
 // plic.c
 void            plicinit(void);

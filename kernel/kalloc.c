@@ -43,8 +43,8 @@ freerange(void *pa_start, void *pa_end)
 
 //my code
 void
-update_ref_count(uint pa, int sign){
-  uint index = (pa-KERNBASE)/PGSIZE;
+update_ref_count(uint64 pa, int sign){
+  uint64 index = (pa-KERNBASE)/PGSIZE;
   if (sign == 1){
   ref_count[index] += 1; 
   }
@@ -54,7 +54,7 @@ update_ref_count(uint pa, int sign){
 }
 
 int
-get_ref_count(uint pa){
+get_ref_count(uint64 pa){
   int count = ref_count[(pa-KERNBASE)/PGSIZE];
   return count;
 }
@@ -66,20 +66,25 @@ get_ref_count(uint pa){
 void
 kfree(void *pa)
 {
-  struct run *r;
-
-  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
-    panic("kfree");
-
-  // Fill with junk to catch dangling refs.
-  memset(pa, 1, PGSIZE);
-
-  r = (struct run*)pa;
-  
+  acquire(&kmem.lock);
+  if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] > 1){
+    update_ref_count((uint64)pa, 0);
+  }
   if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
+    struct run *r;
+
+    if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+      panic("kfree");
+
+    // Fill with junk to catch dangling refs.
+    memset(pa, 1, PGSIZE);
+
+    r = (struct run*)pa;
+  
     r->next = kmem.freelist;
     kmem.freelist = r;
   }
+  release(&kmem.lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -88,52 +93,64 @@ kfree(void *pa)
 void *
 kalloc(void)
 {
+  acquire(&kmem.lock);
   struct run *r;
 
   r = kmem.freelist;
   if(r){
     kmem.freelist = r->next;
-    update_ref_count((uint64)r, 1);
   }
 
-  if(r)
+  if(r){
     memset((char*)r, 5, PGSIZE); // fill with junk
-    //increment ref count
+    ref_count[((uint64)r-KERNBASE)/PGSIZE] = 1;
+  }
+  release(&kmem.lock);
   return (void*)r;
 }
 
 
 void
-kfree_lock(void *pa)
+kfree_no_lock(void *pa)
 {
-  acquire(&kmem.lock);
-  kfree(pa);
-  release(&kmem.lock);
+  update_ref_count((uint64)pa, 0);
+
+  if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
+    struct run *r;
+
+    if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+      panic("kfree");
+
+    // Fill with junk to catch dangling refs.
+    memset(pa, 1, PGSIZE);
+
+    r = (struct run*)pa;
+  
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  }
 }
 
 void *
-kalloc_lock(void)
+kalloc_no_lock(void)
 {
   struct run *r;
-  acquire(&kmem.lock);
-  r = kalloc();
-  release(&kmem.lock);
+
+  r = kmem.freelist;
+  if(r){
+    kmem.freelist = r->next;
+  }
+
+  if(r){
+    memset((char*)r, 5, PGSIZE); // fill with junk
+    ref_count[((uint64)r-KERNBASE)/PGSIZE] = 1;
+  }
   return (void*)r;
 } 
 
 
 void
-check_if_zero(uint64 pa, int sign){
-  acquire(&kmem.lock);
-  update_ref_count(pa, sign);
-  if(get_ref_count(pa) == 0){
-    kfree((void *) pa);
-  }
-  release(&kmem.lock);
-}
-
-void
-lock_update_ref_count(uint pa, int sign){
+lock_update_ref_count(uint64 pa, int sign){
     acquire(&kmem.lock);
     update_ref_count(pa,sign);
     release(&kmem.lock);
@@ -145,23 +162,36 @@ update(pagetable_t table, uint64 va, pte_t *pte, uint64 pa, uint flags){
   uint updated_flags;
   uint64 new_pa;
   acquire(&kmem.lock);
-  if(get_ref_count(pa) == 0){
-    kfree((void *) pa);
-  if(get_ref_count(pa) > 1){
-      updated_flags = flags | PTE_W; //update to write
-      updated_flags = updated_flags & ~PTE_COW; //remove cow
+  printf("%s %d\n", __FILE__, __LINE__);
 
-      new_pa = (uint64)kalloc(); //Allocate a new physical page
-      memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
-      mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
-      update_ref_count(pa, 0);
+  if(get_ref_count(pa) > 1){
+    new_pa = (uint64)kalloc_no_lock(); //Allocate a new physical page
+    
+    printf("%s %d\n", __FILE__, __LINE__);
+
+    updated_flags = flags | PTE_W; //update to write
+    updated_flags = updated_flags & ~PTE_COW; //remove cow
+
+
+    printf("%s %d\n", __FILE__, __LINE__);
+
+    memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
+    mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
+    
+    printf("%s %d\n", __FILE__, __LINE__);
+
+    kfree_no_lock((void *) pa);
+
+    printf("%s %d\n", __FILE__, __LINE__);
   }
-    }
-    else if(get_ref_count(pa) == 1){
-      updated_flags = flags | PTE_W; //update to write
-      updated_flags = updated_flags & ~PTE_COW; //remove cow
-      mappages(table, va, PGSIZE, pa, updated_flags);
-    }
+  else if(get_ref_count(pa) == 1){
+    updated_flags = flags | PTE_W; //update to write
+    updated_flags = updated_flags & ~PTE_COW; //remove cow
+    printf("%s %d\n", __FILE__, __LINE__);
+    //*pte = PA2PTE(pa)| updated_flags;
+    printf("%s %d\n", __FILE__, __LINE__);
+    mappages(table, va, PGSIZE, pa, updated_flags);
+  }
     release(&kmem.lock);
     return 0;
   }

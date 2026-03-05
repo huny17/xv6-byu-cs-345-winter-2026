@@ -33,9 +33,7 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
-void
-usertrap(void)
-{
+
   //Modify usertrap() to recognize page faults. When a write page-fault 
   //occurs on a COW page (a page that was originally writeable), 
   //allocate a new page with kalloc(), copy the old page to the new 
@@ -43,6 +41,11 @@ usertrap(void)
   //Pages that were originally read-only (not mapped PTE_W, like pages in 
   //the text segment) should remain read-only and shared between parent and 
   //child; a process that tries to write such a page should be killed.
+
+void
+usertrap(void)
+{
+
   int which_dev = 0;
 
   if((r_sstatus() & SSTATUS_SPP) != 0)
@@ -81,12 +84,14 @@ usertrap(void)
     //15 = store/amo page faults
   else if (r_scause() == 15){ //only want write page fault
       pagetable_t page = p->pagetable;
-      pte_t *pte = walk(page, r_stval(), 0);
-      if(cow_fault_handler(page, r_stval(), pte) == -1){
-          printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
-          panic("cow1");
-          printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
-          setkilled(p);
+
+      printf("%s %d\n", __FILE__, __LINE__);
+
+      if(cow_fault_handler(page, r_stval()) == -1){
+        printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+        panic("cow1");
+        printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
+        setkilled(p);
       } 
   }
   else {
