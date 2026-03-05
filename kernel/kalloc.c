@@ -70,7 +70,7 @@ kfree(void *pa)
   if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] >= 1){
     update_ref_count((uint64)pa, 0);
   }
-  else if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
+  if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
     struct run *r;
 
     if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)

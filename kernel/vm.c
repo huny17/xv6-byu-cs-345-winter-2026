@@ -318,7 +318,7 @@ cow_fault_handler(pagetable_t table, uint64 va){
   uint flags;
   uint64 pa;
 
-  pte_t *pte = walk(table, r_stval(), 0);
+  pte_t *pte = walk(table, PGROUNDDOWN(va), 0);
   //printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
 
 
@@ -432,11 +432,11 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   uint64 n, va0, pa0;
   pte_t *pte;
 
-  if(*walk(pagetable, dstva, 0) & PTE_COW){
-    if((cow_fault_handler(pagetable, dstva)) == -1){
-      return -1;
-    }
-  }  
+  // if(*walk(pagetable, dstva, 0) & PTE_COW){
+  //   if((cow_fault_handler(pagetable, dstva)) == -1){
+  //     return -1;
+  //   }
+  // }  
     while(len > 0){
       va0 = PGROUNDDOWN(dstva);
       if(va0 >= MAXVA)
