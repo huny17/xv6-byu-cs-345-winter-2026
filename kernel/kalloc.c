@@ -113,7 +113,7 @@ kalloc(void)
 void
 kfree_no_lock(void *pa)
 {
-  update_ref_count((uint64)pa, 0);
+    update_ref_count((uint64)pa, 0);
 
   if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
     struct run *r;
@@ -121,8 +121,7 @@ kfree_no_lock(void *pa)
     if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
       panic("kfree");
 
-    // Fill with junk to catch dangling refs.
-    memset(pa, 1, PGSIZE);
+    memset(pa, 1, PGSIZE);// Fill with junk to catch dangling refs.
 
     r = (struct run*)pa;
   
