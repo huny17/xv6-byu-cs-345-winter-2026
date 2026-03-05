@@ -321,7 +321,9 @@ cow_fault_handler(pagetable_t table, uint64 va){
   pte_t *pte = walk(table, PGROUNDDOWN(va), 0);
   //printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
 
-
+  if(*pte == 0){
+    return -1;
+  }
   //printf("%s %d\n", __FILE__, __LINE__);
   if(r_scause() == 13){//13 = load page faults
     //printf("%s %d\n", __FILE__, __LINE__);
@@ -331,7 +333,7 @@ cow_fault_handler(pagetable_t table, uint64 va){
     //printf("%s %d\n", __FILE__, __LINE__);
       return -1;
   }
-  if((*pte & PTE_COW) && (*pte & PTE_V)){
+  if((*pte & PTE_COW) && (*pte & PTE_V) && (*pte & PTE_U)){
     //printf("%s %d\n", __FILE__, __LINE__);
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
