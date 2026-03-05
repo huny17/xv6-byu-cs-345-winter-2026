@@ -319,31 +319,31 @@ cow_fault_handler(pagetable_t table, uint64 va){
   uint64 pa;
 
   pte_t *pte = walk(table, r_stval(), 0);
-  printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
+  //printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
 
 
-  printf("%s %d\n", __FILE__, __LINE__);
+  //printf("%s %d\n", __FILE__, __LINE__);
   if(r_scause() == 13){//13 = load page faults
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
       return -1;//panic
   }
   if(va >= MAXVA){
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
       return -1;
   }
   if((*pte & PTE_COW) && (*pte & PTE_V)){
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-    printf("%s %d\n", __FILE__, __LINE__);
-    printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
+    //printf("%s %d\n", __FILE__, __LINE__);
+    //printf("cf %p %p %lx\n", (void *) table, (void *)va, *pte);
     if(update(table, PGROUNDDOWN((uint64)va), pte, pa, flags) == 0){
-      printf("%s %d\n", __FILE__, __LINE__);
+      //printf("%s %d\n", __FILE__, __LINE__);
       return 0;
     }
   }
   else{
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
     return -1;
   }
   return 0;

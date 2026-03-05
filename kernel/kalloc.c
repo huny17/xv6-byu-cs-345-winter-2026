@@ -67,10 +67,10 @@ void
 kfree(void *pa)
 {
   acquire(&kmem.lock);
-  if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] > 1){
+  if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] >= 1){
     update_ref_count((uint64)pa, 0);
   }
-  if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
+  else if(ref_count[((uint64)pa-KERNBASE)/PGSIZE] == 0){
     struct run *r;
 
     if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
@@ -162,34 +162,34 @@ update(pagetable_t table, uint64 va, pte_t *pte, uint64 pa, uint flags){
   uint updated_flags;
   uint64 new_pa;
   acquire(&kmem.lock);
-  printf("%s %d\n", __FILE__, __LINE__);
+  //printf("%s %d\n", __FILE__, __LINE__);
 
   if(get_ref_count(pa) > 1){
     new_pa = (uint64)kalloc_no_lock(); //Allocate a new physical page
     
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
 
     updated_flags = flags | PTE_W; //update to write
     updated_flags = updated_flags & ~PTE_COW; //remove cow
 
 
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
 
     memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
     mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
     
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
 
     kfree_no_lock((void *) pa);
 
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
   }
   else if(get_ref_count(pa) == 1){
     updated_flags = flags | PTE_W; //update to write
     updated_flags = updated_flags & ~PTE_COW; //remove cow
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
     //*pte = PA2PTE(pa)| updated_flags;
-    printf("%s %d\n", __FILE__, __LINE__);
+    //printf("%s %d\n", __FILE__, __LINE__);
     mappages(table, va, PGSIZE, pa, updated_flags);
   }
     release(&kmem.lock);

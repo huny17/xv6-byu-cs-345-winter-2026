@@ -85,7 +85,7 @@ usertrap(void)
   else if (r_scause() == 15){ //only want write page fault
       pagetable_t page = p->pagetable;
 
-      printf("%s %d\n", __FILE__, __LINE__);
+      //printf("%s %d\n", __FILE__, __LINE__);
 
       if(cow_fault_handler(page, r_stval()) == -1){
         printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
