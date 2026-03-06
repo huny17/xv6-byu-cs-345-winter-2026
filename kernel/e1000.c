@@ -91,32 +91,125 @@ e1000_init(uint32 *xregs)
   regs[E1000_IMS] = (1 << 7); // RXDW -- Receiver Descriptor Write Back
 }
 
-int
-e1000_transmit(char *buf, int len)
-{
-  //
-  // Your code here.
-  //
-  // buf contains an ethernet frame; program it into
-  // the TX descriptor ring so that the e1000 sends it. Stash
-  // a pointer so that it can be freed after send completes.
-  //
 
-  
+
+
+//
+// buf contains an ethernet frame; program it into
+// the TX descriptor ring so that the e1000 sends it. Stash
+// a pointer so that it can be freed after send completes.
+//
+
+// [E1000 3.3.3]
+/*   
+struct tx_desc     
+{                  
+  uint64 addr;    // Address of buffer 
+  uint16 length;  // Length of data
+  uint8 cso;      // Unused
+  uint8 cmd;      // Command 3.3.3.1 
+  uint8 status;   // Status 3.3.3.2 
+  uint8 css;      // Unused
+  uint16 special; // Unused 
+}; 
+*/
+
+int
+e1000_transmit(char *buf, int len) // Your code here.
+{
+//First ask the E1000 for the TX ring index at which it's expecting the next packet, 
+//by reading the E1000_TDT control register (regs[E1000_TDT]).  
+
+//Sanity check the ring index returned. panic if it’s bad
+
+//Then check if the the ring is overflowing. If E1000_TXD_STAT_DD is not set in the 
+//descriptor indexed by E1000_TDT, the E1000 hasn't finished the corresponding 
+//previous transmission request, so return an error.
+    //status & E1000_TXD_STAT_DD 
+
+//Otherwise, use kfree() to free the last buffer that was transmitted from that 
+//descriptor (if there was one).
+
+//Then fill in the descriptor. Set the necessary cmd flags (look at Section 
+//3.3.3.1 EOP & RS in the E1000 manual) and stash away a pointer to the buffer 
+//for later freeing. Set length. Set unused fields to zero.
+  //cmd 🡸 E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS
+
+//Finally, update the ring position by adding one to E1000_TDT modulo TX_RING_SIZE.
+
+//If e1000_transmit() added the packet successfully to the ring, return 0. 
+//On failure (e.g., there is no descriptor available), return -1 so that the 
+//caller knows to free the buffer.
+
+
   return 0;
 }
 
-static void
-e1000_recv(void)
-{
-  //
-  // Your code here.
-  //
-  // Check for packets that have arrived from the e1000
-  // Create and deliver a buf for each packet (using net_rx()).
-  //
 
+//
+// Check for packets that have arrived from the e1000
+// Create and deliver a buf for each packet (using net_rx()).
+//
+
+// [E1000 3.2.3] 
+/*
+struct rx_desc                                                     
+{                                                                  
+  uint64 addr;    // Address of buffer
+  uint16 length;  // Length of data
+  uint16 csum;    // Frame checksum
+  uint8 status;   // Status
+  uint8 errors;   // Errors
+  uint16 special; // Unused
+}; 
+*/
+
+static void
+e1000_recv(void) // Your code here.
+{
+//In loop (to handle case of more than one packet per interrupt):
+
+  //First ask the E1000 for the ring index at which the next waiting 
+  //received packet (if any) is located, by fetching the E1000_RDT control 
+  //register and adding one modulo RX_RING_SIZE. 
+      //Sanity check it. Panic if it fails.
+
+  //Then check if a new packet is available by checking for the 
+  //E1000_RXD_STAT_DD bit in the status portion of the descriptor. 
+  //If not, stop.
+
+  //Deliver the packet buffer to the network stack by calling net_rx().
+
+  //Then allocate a new buffer using kalloc() to replace the one just 
+  //given to net_rx(). Clear the descriptor's status bits to zero.
+
+  //Finally, update the E1000_RDT register to be the index of the 
+  //last ring descriptor processed.
+
+  //e1000_init() initializes the RX ring with buffers, and you'll 
+  //want to look at how it does that and perhaps borrow code.
+
+  //At some point the total number of packets that have ever arrived 
+  //will exceed the ring size (16); make sure your code can handle that.
 }
+
+//UDP receive processing
+  //e1000_receive() 
+  //net_rx()
+  //ip_rx()
+  //udp_rx()
+  //Enqueue packet for process to receive
+
+  //Application
+  //bind()
+  //“Bind” port number to structure with queue for reception
+  //recv()
+  //Dequeue packet for process to receive
+  //copyout()
+  //Free packet
+
+
+
 
 void
 e1000_intr(void)
