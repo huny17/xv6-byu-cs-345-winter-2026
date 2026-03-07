@@ -26,6 +26,33 @@ netinit(void)
 }
 
 
+/* *****LIST OF FUNC TO WORK ON*****
+  -e1000_transmit(char *buf, int len) //e1000.c 
+  -e1000_recv(void) //e1000.c
+  -sys_bind(void) //net.c
+  -sys_unbind(void) //net.c (opional)
+  -sys_recv(void) //net.c
+  -ip_rx(char *buf, int len) //net.c
+  -vmprint(pagetable_t pagetable) //vm.c
+*/
+
+
+//UDP receive processing
+  //e1000_receive() 
+  //net_rx()
+  //ip_rx()
+  //udp_rx()
+  //Enqueue packet for process to receive
+
+  //Application
+  //bind()
+  //“Bind” port number to structure with queue for reception
+  //recv()
+  //Dequeue packet for process to receive
+  //copyout()
+  //Free packet
+
+
 //
 // bind(int port)
 // prepare to receive UDP packets address to the port,
