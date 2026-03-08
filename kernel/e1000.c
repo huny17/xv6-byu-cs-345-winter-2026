@@ -125,12 +125,15 @@ struct tx_desc
 int
 e1000_transmit(char *buf, int len) // Your code here.
 {
+
+//First sanity check buffer and length arguments. Return -1 if they look bad.
+
 //First ask the E1000 for the TX ring index at which it's expecting the next packet, 
 //by reading the E1000_TDT control register (regs[E1000_TDT]).  
 uint index = regs[E1000_TDT];
 
 //Sanity check the ring index returned. panic if it’s bad
-if(index > TX_RING_SIZE-1){
+if(index > (TX_RING_SIZE-1)){
   panic("e1000_transmit, bad index"); //Other things that could make the index invalid include pointing to a descriptor that is still owned by the hardware, referring to a slot that hasn’t been freed/processed yet, or being out of sync with the head/tail pointers that track which entries are safe to use.
 }
 
@@ -146,16 +149,33 @@ if(tx_ring[index].status & E1000_TXD_STAT_DD == 0){
 //Otherwise, use kfree() to free the last buffer that was transmitted from that 
 //descriptor (if there was one).
 
-if(){
+int prev = -1;
 
+for(int i=0; i<(TX_RING_SIZE-1); i++){
+  if(tx_ring[i].cmd & E1000_TXD_CMD_EOP == 1){
+    if(tx_ring[i].status & E1000_TXD_STAT_DD == 1){
+      prev = i;
+    }
+  }
 }
+
+if(prev == -1){
+  return -1;
+}
+kfree(tx_ring[prev].addr);
 
 //Then fill in the descriptor. Set the necessary cmd flags (look at Section 
 //3.3.3.1 EOP & RS in the E1000 manual) and stash away a pointer to the buffer 
 //for later freeing. Set length. Set unused fields to zero.
   //cmd 🡸 E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS
 
+tx_ring[index].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
+tx_ring[index].addr = buf;
+tx_ring[index].length = len;
+
 //Finally, update the ring position by adding one to E1000_TDT modulo TX_RING_SIZE.
+regs[E1000_TDT] = (index+1)%TX_RING_SIZE; 
+
 
 //If e1000_transmit() added the packet successfully to the ring, return 0. 
 //On failure (e.g., there is no descriptor available), return -1 so that the 
