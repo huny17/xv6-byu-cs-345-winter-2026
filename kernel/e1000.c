@@ -151,8 +151,8 @@ if(tx_ring[index].status & E1000_TXD_STAT_DD == 0){
 
 int prev = -1;
 
-for(int i=0; i<(TX_RING_SIZE-1); i++){
-  if(tx_ring[i].cmd & E1000_TXD_CMD_EOP == 1){
+for(int i=index; i<(TX_RING_SIZE-1); i++){ //how to index circularly?
+  if(tx_ring[i].cmd & E1000_TXD_CMD_EOP == 1){ //might not be how to check?
     if(tx_ring[i].status & E1000_TXD_STAT_DD == 1){
       prev = i;
     }
@@ -162,7 +162,12 @@ for(int i=0; i<(TX_RING_SIZE-1); i++){
 if(prev == -1){
   return -1;
 }
-kfree(tx_ring[prev].addr);
+if(tx_bufs[index] == 0){
+    return -1;
+}
+
+kfree(tx_bufs[index]);
+tx_bufs[index] = 0;
 
 //Then fill in the descriptor. Set the necessary cmd flags (look at Section 
 //3.3.3.1 EOP & RS in the E1000 manual) and stash away a pointer to the buffer 
@@ -170,6 +175,7 @@ kfree(tx_ring[prev].addr);
   //cmd 🡸 E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS
 
 tx_ring[index].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
+tx_ring[index].status = tx_ring[index].status & ~E1000_TXD_STAT_DD;
 tx_ring[index].addr = buf;
 tx_ring[index].length = len;
 
@@ -212,23 +218,49 @@ e1000_recv(void) // Your code here.
   //register and adding one modulo RX_RING_SIZE. 
       //Sanity check it. Panic if it fails.
 
+  uint index = (regs[E1000_RDT]+1)%RX_RING_SIZE; 
+
+  if(index > (RX_RING_SIZE-1)){
+      panic("e1000_recv, bad index");
+  }
+
   //Then check if a new packet is available by checking for the 
   //E1000_RXD_STAT_DD bit in the status portion of the descriptor. 
   //If not, stop.
 
+  if(rx_ring[index].status & E1000_RXD_STAT_DD == 0){
+    return -1;
+  }
+
   //Deliver the packet buffer to the network stack by calling net_rx().
+
+  net_rx(rx_bufs[index], RX_RING_SIZE);//may be wrong len to pass
 
   //Then allocate a new buffer using kalloc() to replace the one just 
   //given to net_rx(). Clear the descriptor's status bits to zero.
 
+  rx_bufs[index] = kalloc();
+
   //Finally, update the E1000_RDT register to be the index of the 
   //last ring descriptor processed.
+
+  regs[E1000_RDT] = (index+1)%RX_RING_SIZE; 
+
 
   //e1000_init() initializes the RX ring with buffers, and you'll 
   //want to look at how it does that and perhaps borrow code.
 
+  ???
+
   //At some point the total number of packets that have ever arrived 
   //will exceed the ring size (16); make sure your code can handle that.
+
+  //The e1000 can deliver more than one packet per 
+  //interrupt; your e1000_recv should handle that situation.
+
+  //You'll need locks to cope with the possibility that xv6 might use 
+  //the E1000 from more than one process, or might be using the E1000 in a kernel thread when an interrupt arrives.
+
 }
 
 

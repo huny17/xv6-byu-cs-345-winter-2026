@@ -58,6 +58,19 @@ netinit(void)
 // prepare to receive UDP packets address to the port,
 // i.e. allocate any queues &c needed.
 //
+
+
+/*
+bind(short port): A process should call bind(port) 
+before it calls recv(port, ...). If a UDP packet 
+arrives with a destination port that hasn't been 
+passed to bind(), net.c should discard that packet. 
+The reason for this system call is to initialize 
+any structures net.c needs in order to store arriving 
+packets for a subsequent recv() call.  
+(You will need to write this function.)
+*/
+
 uint64
 sys_bind(void)
 {
@@ -98,6 +111,20 @@ sys_unbind(void)
 // dport, *src, and *sport are host byte order.
 // bind(dport) must previously have been called.
 //
+
+/*
+bind(short port): A process should call bind(port) 
+before it calls recv(port, ...). If a UDP packet 
+arrives with a destination port that hasn't been 
+passed to bind(), net.c should discard that packet. 
+The reason for this system call is to initialize any 
+structures net.c needs in order to store arriving packets 
+for a subsequent recv() call.  (You will need to write 
+this function.)
+*/
+
+
+
 uint64
 sys_recv(void)
 {
@@ -145,6 +172,19 @@ in_cksum(const unsigned char *addr, int len)
 //
 // send(int sport, int dst, int dport, char *buf, int len)
 //
+
+/*
+send(short sport, int dst, short dport, char *buf, int len): 
+This system call sends a UDP packet to the host with IP address 
+dst, and (on that host) the process listening to port dport. 
+The packet's source port number will be sport (this port number 
+is reported to the receiving process, so that it can reply to 
+the sender). The content ("payload") of the UDP packet will the 
+len bytes at address buf. The return value is 0 on success, and 
+-1 on failure. (This function is already provided.)
+*/
+
+
 uint64
 sys_send(void)
 {
