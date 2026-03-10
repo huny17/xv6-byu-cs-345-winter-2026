@@ -214,9 +214,9 @@ struct rx_desc
 static void
 e1000_recv(void) // Your code here.
 {
+  acquire(&rx_lock);
 //In loop (to handle case of more than one packet per interrupt):
-while (1){  // if got packet
-  //for(int i = 0; i < packets; i++){
+  while (1){  // if got packet
 
     //First ask the E1000 for the ring index at which the next waiting 
     //received packet (if any) is located, by fetching the E1000_RDT control 
@@ -239,17 +239,22 @@ while (1){  // if got packet
 
     //Deliver the packet buffer to the network stack by calling net_rx().
 
-    net_rx(rx_bufs[index], rx_ring[index].length);//may be wrong len to pass
+    net_rx((void *)rx_ring[index].addr, rx_ring[index].length);//may be wrong len to pass
 
     //Then allocate a new buffer using kalloc() to replace the one just 
     //given to net_rx(). Clear the descriptor's status bits to zero.
 
-    rx_bufs[index] = kalloc();
+    rx_ring[index].addr = (uint64)kalloc();
+
+    rx_ring[index].csum = 0;
+    rx_ring[index].errors = 0;
+    rx_ring[index].status = 0;
+    rx_ring[index].special = 0;
 
     //Finally, update the E1000_RDT register to be the index of the 
     //last ring descriptor processed.
 
-    regs[E1000_RDT] = (index+1)%RX_RING_SIZE; 
+    regs[E1000_RDT] = (index)%RX_RING_SIZE; 
 
 
     //e1000_init() initializes the RX ring with buffers, and you'll 
@@ -267,6 +272,7 @@ while (1){  // if got packet
     //the E1000 from more than one process, or might be using the E1000 in a kernel thread when an interrupt arrives.
   //}
   }
+  release(&rx_lock);
 }
 
 
