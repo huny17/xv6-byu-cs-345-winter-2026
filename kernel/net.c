@@ -19,6 +19,24 @@ static uint8 host_mac[ETHADDR_LEN] = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 };
 
 static struct spinlock netlock;
 
+struct port_table     
+{                  
+  // port number
+  // bound flag
+  // packet queue
+  // pointer/index to queue head
+  // pointer/index to queue tail
+
+}; 
+//static struct binding bindings[MAX_BINDINGS];
+
+struct packet_queue
+{
+  //do I need 2 structs?
+};
+
+
+
 void
 netinit(void)
 {
@@ -27,8 +45,6 @@ netinit(void)
 
 
 /* *****LIST OF FUNC TO WORK ON*****
-  -e1000_transmit(char *buf, int len) //e1000.c 
-  -e1000_recv(void) //e1000.c
   -sys_bind(void) //net.c
   -sys_unbind(void) //net.c (opional)
   -sys_recv(void) //net.c
@@ -77,6 +93,8 @@ sys_bind(void)
   //
   // Your code here.
   //
+
+
 
   return -1;
 }
@@ -131,7 +149,62 @@ sys_recv(void)
   //
   // Your code here.
   //
-  return -1;
+  struct proc *p = myproc();
+  int sport;
+  int dst;
+  int dport;
+  uint64 bufaddr;
+  int len;
+
+  argint(0, &sport);
+  argint(1, &dst);
+  argint(2, &dport);
+  argaddr(3, &bufaddr);
+  argint(4, &len);
+
+  int total = len + sizeof(struct eth) + sizeof(struct ip) + sizeof(struct udp);
+  if(total > PGSIZE)
+    return -1;
+
+  char *buf = kalloc();
+  if(buf == 0){
+    printf("sys_send: kalloc failed\n");
+    return -1;
+  }
+  memset(buf, 0, PGSIZE);
+
+  struct eth *eth = (struct eth *) buf;
+  memmove(eth->dhost, host_mac, ETHADDR_LEN);
+  memmove(eth->shost, local_mac, ETHADDR_LEN);
+  eth->type = htons(ETHTYPE_IP);
+
+  struct ip *ip = (struct ip *)(eth + 1);
+  ip->ip_vhl = 0x45; // version 4, header length 4*5
+  ip->ip_tos = 0;
+  ip->ip_len = htons(sizeof(struct ip) + sizeof(struct udp) + len);
+  ip->ip_id = 0;
+  ip->ip_off = 0;
+  ip->ip_ttl = 100;
+  ip->ip_p = IPPROTO_UDP;
+  ip->ip_src = htonl(local_ip);
+  ip->ip_dst = htonl(dst);
+  //ip->ip_sum = in_cksum((unsigned char *)ip, sizeof(*ip));
+
+  struct udp *udp = (struct udp *)(ip + 1);
+  udp->sport = htons(sport);
+  udp->dport = htons(dport);
+  udp->ulen = htons(len + sizeof(struct udp));
+
+  char *payload = (char *)(udp + 1);
+  if(copyin(p->pagetable, payload, bufaddr, len) < 0){
+    kfree(buf);
+    printf("send: copyin failed\n");
+    return -1;
+  }
+
+  e1000_transmit(buf, total);
+
+  return 0;
 }
 
 // This code is lifted from FreeBSD's ping.c, and is copyright by the Regents
