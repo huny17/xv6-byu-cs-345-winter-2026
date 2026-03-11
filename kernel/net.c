@@ -53,6 +53,13 @@ netinit(void)
 */
 
 
+/*ORDER CALLED IN?
+  bind
+  ip_rx
+  recv
+*/
+
+
 //UDP receive processing
   //e1000_receive() 
   //net_rx()
@@ -88,13 +95,22 @@ packets for a subsequent recv() call.
 */
 
 uint64
-sys_bind(void)
+sys_bind(void)  // Your code here.
 {
-  //
-  // Your code here.
-  //
+
+  int port;
+  //associates the socket with a local IP address and port so the OS 
+  //knows which socket should receive incoming packets.
 
 
+
+  //initialize any structures net.c needs in order to 
+  port_table table;
+
+  packet_queue pq;
+  
+  //store arriving packets for a subsequent recv() call
+      //fill structure with ports given
 
   return -1;
 }
@@ -144,11 +160,8 @@ this function.)
 
 
 uint64
-sys_recv(void)
+sys_recv(void)   // Your code here.
 {
-  //
-  // Your code here.
-  //
   struct proc *p = myproc();
   int sport;
   int dst;
@@ -171,38 +184,26 @@ sys_recv(void)
     printf("sys_send: kalloc failed\n");
     return -1;
   }
-  memset(buf, 0, PGSIZE);
 
-  struct eth *eth = (struct eth *) buf;
-  memmove(eth->dhost, host_mac, ETHADDR_LEN);
-  memmove(eth->shost, local_mac, ETHADDR_LEN);
-  eth->type = htons(ETHTYPE_IP);
+  //Called by the application to read the data that was 
+  //placed in the socket buffer by the network stack.
 
-  struct ip *ip = (struct ip *)(eth + 1);
-  ip->ip_vhl = 0x45; // version 4, header length 4*5
-  ip->ip_tos = 0;
-  ip->ip_len = htons(sizeof(struct ip) + sizeof(struct udp) + len);
-  ip->ip_id = 0;
-  ip->ip_off = 0;
-  ip->ip_ttl = 100;
-  ip->ip_p = IPPROTO_UDP;
-  ip->ip_src = htonl(local_ip);
-  ip->ip_dst = htonl(dst);
-  //ip->ip_sum = in_cksum((unsigned char *)ip, sizeof(*ip));
+  //If no packets are waiting, recv() should 
+  //wait until a packet for dport arrives.
+  
+  //should see arriving packets for a given port in arrival order
 
-  struct udp *udp = (struct udp *)(ip + 1);
-  udp->sport = htons(sport);
-  udp->dport = htons(dport);
-  udp->ulen = htons(len + sizeof(struct udp));
+  //copies the packet's 32-bit source IP address to *src, 
+  //copies the packet's 16-bit UDP source port number to *sport, 
+  //copies at most maxlen bytes of the packet's UDP payload to buf, 
+  //and removes the packet from the queue
 
-  char *payload = (char *)(udp + 1);
-  if(copyin(p->pagetable, payload, bufaddr, len) < 0){
-    kfree(buf);
-    printf("send: copyin failed\n");
-    return -1;
-  }
 
-  e1000_transmit(buf, total);
+  e1000_recv();//do I need to send packet??
+
+  //The system call returns the number of bytes of the UDP payload copied, 
+  //or -1 if there was an error.
+
 
   return 0;
 }
@@ -319,6 +320,24 @@ sys_send(void)
   return 0;
 }
 
+  /*
+  decide if the arriving packet is UDP, and whether its 
+  destination port has been passed to bind(); if both are true, 
+  it should save the packet where recv() can find it. However, 
+  for any given port, no more than 16 packets should be saved; 
+  if 16 are already waiting for recv(), an incoming packet for 
+  that port should be dropped. The point of this rule is to prevent 
+  a fast or abusive sender from forcing xv6 to run out of memory. 
+  Furthermore, if packets are being dropped for one port because 
+  it already has 16 packets waiting, that should not affect packets 
+  arriving for other ports.
+
+  The packet buffers that ip_rx() looks at contain a 14-byte 
+  ethernet header, followed by a 20-byte IP header, followed by an 
+  8-byte UDP header, followed by the UDP payload. You'll find C struct 
+  definitions for each of these in kernel/net.h. 
+  */
+
 void
 ip_rx(char *buf, int len)
 {
@@ -331,6 +350,23 @@ ip_rx(char *buf, int len)
   //
   // Your code here.
   //
+
+  //Triggered when a packet arrives from the network interface.
+
+  //The IP layer processes the packet and determines which 
+  //socket it belongs to (using the address/port information from bind).
+
+  //The data is placed in the socket’s receive buffer.
+
+
+  //decide if the arriving packet is UDP, and whether its 
+  //destination port has been passed to bind()
+    //true ->save the packet where recv() can find it
+
+  //if 16 are already waiting for recv(), an incoming packet for 
+  //that port should be dropped  
+    // -> drop should not affect packets 
+    //arriving for other ports.
   
 }
 
