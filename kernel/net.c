@@ -153,15 +153,28 @@ this function.)
 uint64
 sys_recv(void)   // Your code here.
 {
- aquire(&netlock);
+  aquire(&netlock);
 
- struct socket found;
+  struct proc *p = myproc();
+  int sport;
+  int dst;
+  int dport;
+  uint64 bufaddr;
+  int len;
+
+  argint(0, &sport);
+  argint(1, &dst);
+  argint(2, &dport);
+  argaddr(3, &bufaddr);
+  argint(4, &len);
+
+  struct socket found;
 
   for (int i = 0; i < sockets; i++){
   if((sockets[i].port_number != 0)){
     found = sockets[i];
   }
-
+  }
 
   //Called by the application to read the data that was 
   //placed in the socket buffer by the network stack.
@@ -364,30 +377,26 @@ udp_rx(char *buf, int port){
   //The IP layer processes the packet and determines which 
   //socket it belongs to (using the address/port information from bind).
   for (int i = 0; i < sockets; i++){
-    if((sockets[i].port_number != 0) && (port == sockets[i].port_number)){ //destination port has been passed to bind()
+    if(port == sockets[i].port_number){ //destination port has been passed to bind()
       //The data is placed in the socket’s receive buffer.
       //true ->save the packet where recv() can find it
-      if(full(sockets[i].head, sockets[i].tail) != 1){
-        *found = sockets[i];
+      if(!full(sockets[i].head, sockets[i].tail)){
+        found = &sockets[i];
         found->packet_queue[found->head] = ((uint64)buf);
         found->head = found->head + 1; //add to the head, remove from the tail
         wakeup(found);
       }
       else{
         kfree(buf);
+        release(&netlock);
         return;
       }
-      
     }
-
   }
   if(found == 0){
     kfree(buf);
-    release(&netlock);
-    return;
   }
   release(&netlock);
-  sys_recv();
 }
 
 //
