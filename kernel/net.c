@@ -19,22 +19,23 @@ static uint8 host_mac[ETHADDR_LEN] = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 };
 
 static struct spinlock netlock;
 
-struct port_table     
+#define QUEUE_SIZE 16
+#define MAX_SOCKETS 8
+
+struct socket     
 {                  
-  // port number
-  // bound flag
-  // packet queue
-  // pointer/index to queue head
-  // pointer/index to queue tail
+  int port_number; //0 if free
+  uint64 packet_queue[QUEUE_SIZE];
+  int head;
+  int tail;
+
+  //increment forever -> subtract and mod
+  //modular -> make sure head doesn't reach tail
 
 }; 
 //static struct binding bindings[MAX_BINDINGS];
 
-struct packet_queue
-{
-  //do I need 2 structs?
-};
-
+static struct socket sockets[MAX_SOCKETS];
 
 
 void
@@ -60,22 +61,6 @@ netinit(void)
 */
 
 
-//UDP receive processing
-  //e1000_receive() 
-  //net_rx()
-  //ip_rx()
-  //udp_rx()
-  //Enqueue packet for process to receive
-
-  //Application
-  //bind()
-  //“Bind” port number to structure with queue for reception
-  //recv()
-  //Dequeue packet for process to receive
-  //copyout()
-  //Free packet
-
-
 //
 // bind(int port)
 // prepare to receive UDP packets address to the port,
@@ -98,20 +83,26 @@ uint64
 sys_bind(void)  // Your code here.
 {
 
+  acquire(&netlock);
   int port;
   //associates the socket with a local IP address and port so the OS 
   //knows which socket should receive incoming packets.
-
-
+  argint(0, &port);
 
   //initialize any structures net.c needs in order to 
-  port_table table;
-
-  packet_queue pq;
+  for (int i = 0; i < sockets; i++){
+    if (sockets[i].port_number == 0){
+        sockets[i].port_number = port;
+        sockets[i].head = 0;
+        sockets[i].tail = 0;
+        release(&netlock);
+        return 0;
+    }
+  }
   
   //store arriving packets for a subsequent recv() call
       //fill structure with ports given
-
+  release(&netlock);
   return -1;
 }
 
@@ -162,28 +153,15 @@ this function.)
 uint64
 sys_recv(void)   // Your code here.
 {
-  struct proc *p = myproc();
-  int sport;
-  int dst;
-  int dport;
-  uint64 bufaddr;
-  int len;
+ aquire(&netlock);
 
-  argint(0, &sport);
-  argint(1, &dst);
-  argint(2, &dport);
-  argaddr(3, &bufaddr);
-  argint(4, &len);
+ struct socket found;
 
-  int total = len + sizeof(struct eth) + sizeof(struct ip) + sizeof(struct udp);
-  if(total > PGSIZE)
-    return -1;
-
-  char *buf = kalloc();
-  if(buf == 0){
-    printf("sys_send: kalloc failed\n");
-    return -1;
+  for (int i = 0; i < sockets; i++){
+  if((sockets[i].port_number != 0)){
+    found = sockets[i];
   }
+
 
   //Called by the application to read the data that was 
   //placed in the socket buffer by the network stack.
@@ -199,12 +177,16 @@ sys_recv(void)   // Your code here.
   //and removes the packet from the queue
 
 
+  //flip endian again
+
   e1000_recv();//do I need to send packet??
 
   //The system call returns the number of bytes of the UDP payload copied, 
   //or -1 if there was an error.
 
-
+  //copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
+  
+  release(&netlock);
   return 0;
 }
 
@@ -339,7 +321,7 @@ sys_send(void)
   */
 
 void
-ip_rx(char *buf, int len)
+ip_rx(char *buf, int len)  // Your code here, triggered when a packet arrives from the network interface.
 {
   // don't delete this printf; make grade depends on it.
   static int seen_ip = 0;
@@ -347,27 +329,65 @@ ip_rx(char *buf, int len)
     printf("ip_rx: received an IP packet\n");
   seen_ip = 1;
 
-  //
-  // Your code here.
-  //
+  struct ip *ip_p = (struct ip *)((uint64)buf + sizeof(struct eth));
+  if(ip_p->ip_p != IPPROTO_UDP){
+    kfree(buf);
+    return;
+  }
 
-  //Triggered when a packet arrives from the network interface.
-
-  //The IP layer processes the packet and determines which 
-  //socket it belongs to (using the address/port information from bind).
-
-  //The data is placed in the socket’s receive buffer.
-
-
-  //decide if the arriving packet is UDP, and whether its 
-  //destination port has been passed to bind()
-    //true ->save the packet where recv() can find it
-
+  struct udp *udp_p = (struct udp *)((uint64)ip_p + sizeof(struct ip));   //e -> ip -> udp : decide if the arriving packet is UDP
+  
+  int port = ntohs(udp_p->dport); //get port from udp struc using hs to change endian
+  
+  udp_rx(buf, port);
+  
   //if 16 are already waiting for recv(), an incoming packet for 
   //that port should be dropped  
-    // -> drop should not affect packets 
-    //arriving for other ports.
+    //drop should not affect packets arriving for other ports.
   
+}
+
+int
+full(int head, int tail){
+  if(head-tail == QUEUE_SIZE){
+    return 1;
+  }
+  return 0;
+}
+
+void
+udp_rx(char *buf, int port){
+
+  struct socket *found = 0;
+
+  acquire(&netlock);
+  //The IP layer processes the packet and determines which 
+  //socket it belongs to (using the address/port information from bind).
+  for (int i = 0; i < sockets; i++){
+    if((sockets[i].port_number != 0) && (port == sockets[i].port_number)){ //destination port has been passed to bind()
+      //The data is placed in the socket’s receive buffer.
+      //true ->save the packet where recv() can find it
+      if(full(sockets[i].head, sockets[i].tail) != 1){
+        *found = sockets[i];
+        found->packet_queue[found->head] = ((uint64)buf);
+        found->head = found->head + 1; //add to the head, remove from the tail
+        wakeup(found);
+      }
+      else{
+        kfree(buf);
+        return;
+      }
+      
+    }
+
+  }
+  if(found == 0){
+    kfree(buf);
+    release(&netlock);
+    return;
+  }
+  release(&netlock);
+  sys_recv();
 }
 
 //
