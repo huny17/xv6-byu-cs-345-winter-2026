@@ -28,12 +28,9 @@ struct socket
   uint64 packet_queue[QUEUE_SIZE];
   int head;
   int tail;
-
   //increment forever -> subtract and mod
   //modular -> make sure head doesn't reach tail
-
 }; 
-//static struct binding bindings[MAX_BINDINGS];
 
 static struct socket sockets[MAX_SOCKETS];
 
@@ -44,6 +41,21 @@ netinit(void)
   initlock(&netlock, "netlock");
 }
 
+int
+full(int head, int tail){
+  if(head-tail == QUEUE_SIZE){
+    return 1;
+  }
+  return 0;
+}
+
+int
+empty(int head, int tail){
+  if(head==tail){
+    return 1;
+  }
+  return 0;
+}
 
 /* *****LIST OF FUNC TO WORK ON*****
   -sys_bind(void) //net.c
@@ -90,7 +102,11 @@ sys_bind(void)  // Your code here.
   argint(0, &port);
 
   //initialize any structures net.c needs in order to 
-  for (int i = 0; i < sockets; i++){
+  for (int i = 0; i < MAX_SOCKETS; i++){
+    if (sockets[i].port_number == port){
+      release(&netlock);
+      return -1;
+    }
     if (sockets[i].port_number == 0){
         sockets[i].port_number = port;
         sockets[i].head = 0;
@@ -153,62 +169,75 @@ this function.)
 uint64
 sys_recv(void)   // Your code here.
 {
-  aquire(&netlock);
+  acquire(&netlock);
 
   struct proc *p = myproc();
   int dport;
-  int *src;
-  int *sport;
+  int src;
+  int sport;
   uint64 bufaddr;
   int maxlen;
 
   argint(0, &dport);
+  argint(1, &src);
   argint(2, &sport);
   argaddr(3, &bufaddr);
   argint(4, &maxlen);
 
-  pagetable_t pagetable = p->pagetable;
   struct socket *found = 0;
   uint64 packet;  
+  int pay_size;
 
   //The IP layer processes the packet and determines which 
   //socket it belongs to (using the address/port information from bind).
-  for (int i = 0; i < sockets; i++){
+  for (int i = 0; i < MAX_SOCKETS; i++){
     if(dport == sockets[i].port_number){ //destination port has been passed to bind()
-      //The data is placed in the socket’s receive buffer.
-      //true ->save the packet where recv() can find it
       found = &sockets[i];
-      while(empty(sockets[i].head, sockets[i].tail)){
+      while(empty(sockets[i].head, sockets[i].tail)==1){
         sleep(found, &netlock);
       }
       packet = found->packet_queue[found->tail];
-      found->tail = found->tail + 1; //add to the head, remove from the tail
+      found->tail = (found->tail + 1)%QUEUE_SIZE; //add to the head, remove from the tail
       
       
-      //struct ip *ip = (struct ip *)(eth + 1);
+
       struct ip *ip_p = (struct ip *)((uint64)packet + sizeof(struct eth));
       struct udp *udp_p = (struct udp *)((uint64)ip_p + sizeof(struct ip)); 
+      char * payload = (char *)((uint64)udp_p + sizeof(struct udp));
+      //pagetable_t pagetable, uint64 dstva, char *src, uint64 len
+
+      int h_src= ntohl(ip_p->ip_src);
+      int h_sport = ntohs(udp_p->sport);
+
+      pay_size = ntohs(udp_p->ulen) - sizeof(struct udp);
 
       //Payload
-      if(copyout(pagetable, bufaddr, packet, maxlen)<0){ //pagetable_t pagetable, uint64 dstva, char *src, uint64 len
-        panic('sys_recv, payload');
+      if(copyout(p->pagetable, bufaddr, payload, pay_size)<0){ 
+        kfree((void*)packet);
+        release(&netlock);
+        return -1;
       }
-        //Src IP
-      if(copyout(pagetable, src, ip_p->ip_src, sizeof(ip_p->ip_src))<0){
-        panic('sys_recv, src');
+      //Src IP
+      if(copyout(p->pagetable, (uint64)src, (char *)&h_src,  sizeof(ip_p->ip_src))<0){
+        kfree((void*)packet);
+        release(&netlock);
+        return -1;
       }
       //Src port
-      if(copyout(pagetable, sport, udp_p->sport, sizeof(udp_p->sport))<0){
-        panic('sys_recv, sport');
+      if(copyout(p->pagetable, (uint64)sport, (char *)&h_sport, sizeof(udp_p->sport))<0){
+        kfree((void*)packet);
+        release(&netlock);
+        return -1;
       }
+      kfree((void*)packet);
+      break;
     }
   }
   if(found == 0){
-    panic('sys_recv, packet not found');
+    return -1;
   }
-
   release(&netlock);
-  return 0;
+  return pay_size;
 }
   //Called by the application to read the data that was 
   //placed in the socket buffer by the network stack.
@@ -366,6 +395,40 @@ sys_send(void)
   */
 
 void
+udp_rx(char *buf, int port){
+
+  struct socket *found = 0;
+
+  acquire(&netlock);
+  //The IP layer processes the packet and determines which 
+  //socket it belongs to (using the address/port information from bind).
+  for (int i = 0; i < MAX_SOCKETS; i++){
+    if(port == sockets[i].port_number){ //destination port has been passed to bind()
+      //The data is placed in the socket’s receive buffer.
+      //true ->save the packet where recv() can find it
+      if(!full(sockets[i].head, sockets[i].tail)){
+        found = &sockets[i];
+        found->packet_queue[found->head] = ((uint64)buf);
+        found->head = (found->head + 1)%QUEUE_SIZE; //add to the head, remove from the tail
+        wakeup(found);
+        release(&netlock);
+        return;
+      }
+      else{
+        kfree(buf);
+        release(&netlock);
+        return;
+      }
+    }
+  }
+  if(found == 0){
+    kfree(buf);
+  }
+  release(&netlock);
+  return;
+}
+
+void
 ip_rx(char *buf, int len)  // Your code here, triggered when a packet arrives from the network interface.
 {
   // don't delete this printf; make grade depends on it.
@@ -392,52 +455,9 @@ ip_rx(char *buf, int len)  // Your code here, triggered when a packet arrives fr
   
 }
 
-int
-full(int head, int tail){
-  if(head-tail == QUEUE_SIZE){
-    return 1;
-  }
-  return 0;
-}
 
-int
-empty(int head, int tail){
-  if(head==tail){
-    return 1;
-  }
-  return 0;
-}
 
-void
-udp_rx(char *buf, int port){
 
-  struct socket *found = 0;
-
-  acquire(&netlock);
-  //The IP layer processes the packet and determines which 
-  //socket it belongs to (using the address/port information from bind).
-  for (int i = 0; i < sockets; i++){
-    if(port == sockets[i].port_number){ //destination port has been passed to bind()
-      //The data is placed in the socket’s receive buffer.
-      //true ->save the packet where recv() can find it
-      if(!full(sockets[i].head, sockets[i].tail)){
-        found = &sockets[i];
-        found->packet_queue[found->head] = ((uint64)buf);
-        found->head = found->head + 1; //add to the head, remove from the tail
-        wakeup(found);
-      }
-      else{
-        kfree(buf);
-        release(&netlock);
-        return;
-      }
-    }
-  }
-  if(found == 0){
-    kfree(buf);
-  }
-  release(&netlock);
-}
 
 //
 // send an ARP reply packet to tell qemu to map
