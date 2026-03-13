@@ -156,26 +156,60 @@ sys_recv(void)   // Your code here.
   aquire(&netlock);
 
   struct proc *p = myproc();
-  int sport;
-  int dst;
   int dport;
+  int *src;
+  int *sport;
   uint64 bufaddr;
-  int len;
+  int maxlen;
 
-  argint(0, &sport);
-  argint(1, &dst);
-  argint(2, &dport);
+  argint(0, &dport);
+  argint(2, &sport);
   argaddr(3, &bufaddr);
-  argint(4, &len);
+  argint(4, &maxlen);
 
-  struct socket found;
+  pagetable_t pagetable = p->pagetable;
+  struct socket *found = 0;
+  uint64 packet;  
 
+  //The IP layer processes the packet and determines which 
+  //socket it belongs to (using the address/port information from bind).
   for (int i = 0; i < sockets; i++){
-  if((sockets[i].port_number != 0)){
-    found = sockets[i];
+    if(dport == sockets[i].port_number){ //destination port has been passed to bind()
+      //The data is placed in the socket’s receive buffer.
+      //true ->save the packet where recv() can find it
+      found = &sockets[i];
+      while(empty(sockets[i].head, sockets[i].tail)){
+        sleep(found, &netlock);
+      }
+      packet = found->packet_queue[found->tail];
+      found->tail = found->tail + 1; //add to the head, remove from the tail
+      
+      
+      //struct ip *ip = (struct ip *)(eth + 1);
+      struct ip *ip_p = (struct ip *)((uint64)packet + sizeof(struct eth));
+      struct udp *udp_p = (struct udp *)((uint64)ip_p + sizeof(struct ip)); 
+
+      //Payload
+      if(copyout(pagetable, bufaddr, packet, maxlen)<0){ //pagetable_t pagetable, uint64 dstva, char *src, uint64 len
+        panic('sys_recv, payload');
+      }
+        //Src IP
+      if(copyout(pagetable, src, ip_p->ip_src, sizeof(ip_p->ip_src))<0){
+        panic('sys_recv, src');
+      }
+      //Src port
+      if(copyout(pagetable, sport, udp_p->sport, sizeof(udp_p->sport))<0){
+        panic('sys_recv, sport');
+      }
+    }
   }
+  if(found == 0){
+    panic('sys_recv, packet not found');
   }
 
+  release(&netlock);
+  return 0;
+}
   //Called by the application to read the data that was 
   //placed in the socket buffer by the network stack.
 
@@ -192,16 +226,14 @@ sys_recv(void)   // Your code here.
 
   //flip endian again
 
-  e1000_recv();//do I need to send packet??
+  //e1000_recv();//do I need to send packet??
 
   //The system call returns the number of bytes of the UDP payload copied, 
   //or -1 if there was an error.
 
-  //copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
+
   
-  release(&netlock);
-  return 0;
-}
+
 
 // This code is lifted from FreeBSD's ping.c, and is copyright by the Regents
 // of the University of California.
@@ -363,6 +395,14 @@ ip_rx(char *buf, int len)  // Your code here, triggered when a packet arrives fr
 int
 full(int head, int tail){
   if(head-tail == QUEUE_SIZE){
+    return 1;
+  }
+  return 0;
+}
+
+int
+empty(int head, int tail){
+  if(head==tail){
     return 1;
   }
   return 0;
