@@ -8,6 +8,7 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
+//#include "proc.h"
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -19,21 +20,22 @@ struct run {
 };
 
 struct {
-  struct spinlock lock;
-  struct run *freelist;
+  struct spinlock lock [NCPU];
+  struct run *freelist [NCPU];
 } kmem;
 
 void
-kinit()
+kinit() 
 {
-  initlock(&kmem.lock, "kmem");
+  initlock(&kmem.lock[0], "kmem");
   freerange(end, (void*)PHYSTOP);
 }
 
-void
+void //my code set up cpu
 freerange(void *pa_start, void *pa_end)
 {
   char *p;
+
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
@@ -78,6 +80,9 @@ Determine the current CPU
 
 Insert the freed page into that CPU’s free list
 
+lock victim
+then thief
+
 */
 
 
@@ -94,10 +99,16 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  push_off();
+
+  int curr_cpu = cpuid(); 
+
+  pop_off();
+
+  acquire(&kmem.lock[curr_cpu]);
+  r->next = kmem.freelist[curr_cpu];
+  kmem.freelist[curr_cpu] = r;
+  release(&kmem.lock[curr_cpu]);
 }
 
 /*
@@ -146,15 +157,38 @@ kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
+  push_off();
+
+  int curr_cpu = cpuid();
+
+  pop_off();
+  
+  acquire(&kmem.lock[curr_cpu]);
+  r = kmem.freelist[curr_cpu];
+    
   if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+    kmem.freelist[curr_cpu] = r->next;
+  release(&kmem.lock[curr_cpu]);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+
+  else{
+    for (int i = 0; i < NCPU; i++){
+      acquire(&kmem.lock[i]);
+      r = kmem.freelist[i];
+      if(r)
+        kmem.freelist[i] = r->next;
+      release(&kmem.lock[i]);
+
+      if(r){
+        memset((char*)r, 5, PGSIZE); // fill with junk        }
+        break;
+      }
+    }
+  }
   return (void*)r;
+  
 }
 \
 
