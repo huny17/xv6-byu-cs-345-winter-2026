@@ -496,6 +496,8 @@ bmap(struct inode *ip, uint bn) //my code
 }
 */
 
+///test
+
 // Truncate inode (discard contents).
 // Caller must hold ip->lock.
 void
