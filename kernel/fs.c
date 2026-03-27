@@ -369,6 +369,16 @@ iunlockput(struct inode *ip)
   iput(ip);
 }
 
+/*
+3. Doubly-indirect block (two levels)
+
+This is a block full of pointers — but instead of pointing to data blocks, 
+it points to singly-indirect blocks.
+
+Each of those singly-indirect blocks then points to many data blocks.
+*/
+
+
 // Inode content
 //
 // The content (data) associated with each inode is stored
@@ -417,7 +427,7 @@ bmap(struct inode *ip, uint bn) //my code
     return addr;
   }
   
-  /*
+  //double
     if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0){
@@ -438,7 +448,7 @@ bmap(struct inode *ip, uint bn) //my code
     brelse(bp);
     return addr;
   }
-    */
+
 
   panic("bmap: out of range");
 }
