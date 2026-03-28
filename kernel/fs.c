@@ -440,6 +440,14 @@ bmap(struct inode *ip, uint bn) //my code
     }
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
+
+  /*
+  Good thinking, but the concern isn't about overwriting buf. Look at your doubly-indirect section more 
+  carefully — after you read the first block with bread and index into it with a[bn], in the single-indirect 
+  case that gives you the final data block address. But in the doubly-indirect case, what does a[bn] give 
+  you instead of data?
+  */
+
     if((addr = a[bn]) == 0){
       addr = balloc(ip->dev);
       if(addr){
