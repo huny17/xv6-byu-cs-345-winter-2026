@@ -395,16 +395,16 @@ bmap(struct inode *ip, uint bn) //my code
   uint addr, *a;
   struct buf *bp;
 
-  if(bn < NDIRECT){
-    if((addr = ip->addrs[bn]) == 0){
-      addr = balloc(ip->dev);
-      if(addr == 0)
+  if(bn < NDIRECT){ //if block address in NDIRECT
+    if((addr = ip->addrs[bn]) == 0){ //get address and check if it is zero, free?
+      addr = balloc(ip->dev); // need to allocation the address if it is free
+      if(addr == 0) //if address is still zero, no more room, exit
         return 0;
-      ip->addrs[bn] = addr;
+      ip->addrs[bn] = addr; //set ip pointer to new address
     }
     return addr;
   }
-  bn -= NDIRECT;
+    bn -= NDIRECT; //re-index relative to where is in block structure
 
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
@@ -427,14 +427,16 @@ bmap(struct inode *ip, uint bn) //my code
     return addr;
   }
   
+    bn -= NINDIRECT;
+
   //double
     if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
-    if((addr = ip->addrs[NDIRECT]) == 0){
+    if((addr = ip->addrs[NDIRECT+1]) == 0){
       addr = balloc(ip->dev);
       if(addr == 0)
         return 0;
-      ip->addrs[NDIRECT] = addr;
+      ip->addrs[NDIRECT+1] = addr;
     }
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
