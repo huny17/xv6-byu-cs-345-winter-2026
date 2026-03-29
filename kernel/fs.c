@@ -394,6 +394,8 @@ bmap(struct inode *ip, uint bn) //my code
 {
   uint addr, *a;
   struct buf *bp;
+  uint *a_new;
+  struct buf *bp_new;
 
   if(bn < NDIRECT){ //if block address in NDIRECT
     if((addr = ip->addrs[bn]) == 0){ //get address and check if it is zero, free?
@@ -406,6 +408,8 @@ bmap(struct inode *ip, uint bn) //my code
   }
     bn -= NDIRECT; //re-index relative to where is in block structure
 
+
+  //1 level of indirection: the indirect block → data blocks
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0){
@@ -430,7 +434,7 @@ bmap(struct inode *ip, uint bn) //my code
     bn -= NINDIRECT;
 
   //double
-    if(bn < NINDIRECT){
+    if(bn < NINDIRECT*NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT+1]) == 0){
       addr = balloc(ip->dev);
@@ -438,27 +442,26 @@ bmap(struct inode *ip, uint bn) //my code
         return 0;
       ip->addrs[NDIRECT+1] = addr;
     }
+
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
 
-  /*
-  Good thinking, but the concern isn't about overwriting buf. Look at your doubly-indirect section more 
-  carefully — after you read the first block with bread and index into it with a[bn], in the single-indirect 
-  case that gives you the final data block address. But in the doubly-indirect case, what does a[bn] give 
-  you instead of data?
-  */
+    bp_new = bread(ip->dev, a[bn/NINDIRECT]);
+    a_new = (uint*)bp_new->data;
+    
+    //2 levels of indirection: the double indirect block → indirect blocks → data blocks
 
-    if((addr = a[bn]) == 0){
+    if((addr = a_new[bn%NINDIRECT]) == 0){ //
       addr = balloc(ip->dev);
       if(addr){
-        a[bn] = addr;
-        log_write(bp);
+        a_new[bn%NINDIRECT] = addr;
+        log_write(bp_new);
       }
     }
     brelse(bp);
+    brelse(bp_new);
     return addr;
   }
-
 
   panic("bmap: out of range");
 }
@@ -513,9 +516,11 @@ bmap(struct inode *ip, uint bn) //my code
 void
 itrunc(struct inode *ip)
 {
-  int i, j;
+  int i, j, k;
   struct buf *bp;
   uint *a;
+  uint *a_new;
+  struct buf *bp_new;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -534,6 +539,28 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+  if(ip->addrs[NDIRECT+1]){
+    bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    a = (uint*)bp->data;
+
+    for(j = 0; j < NINDIRECT; j++){
+      if(a[j]){
+        bp_new = bread(ip->dev, a[j]);
+        a_new = (uint*)bp_new->data;
+        for(k = 0; k < NINDIRECT; k++){
+          if (a_new[k]){
+            bfree(ip->dev, a_new[k]);
+          }
+        }
+        brelse(bp_new);
+        bfree(ip->dev, a[j]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT+1]);
+    ip->addrs[NDIRECT+1] = 0;
   }
 
   ip->size = 0;
