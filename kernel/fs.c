@@ -446,6 +446,15 @@ bmap(struct inode *ip, uint bn) //my code
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
 
+    // Load indirect block, allocating if necessary.
+    if((addr = a[bn/NINDIRECT]) == 0){
+      addr = balloc(ip->dev);
+      if(addr == 0)
+        return 0;
+      a[bn/NINDIRECT] = addr;
+      log_write(bp);
+    }
+
     bp_new = bread(ip->dev, a[bn/NINDIRECT]);
     a_new = (uint*)bp_new->data;
     
