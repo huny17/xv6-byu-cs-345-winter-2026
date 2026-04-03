@@ -110,8 +110,8 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
-uint64             mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
-uint64             munmap(void *addr, size_t len);
+uint64          proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
+uint64          proc_munmap(void *addr, size_t len);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

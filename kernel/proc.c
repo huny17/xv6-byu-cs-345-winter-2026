@@ -696,11 +696,23 @@ procdump(void)
 
 
 uint64
-mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
-  return -1;
+proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
+// find an unused region in the process's address 
+//space in which to map the file
+
+//find an unused region in the process's address space in which to map the file
+
+//VMA should contain a pointer to a struct file for the file being mapped
+    //mmap should increase the file's reference count so that the structure 
+    //doesn't disappear when the file is closed (hint: see filedup)
+  
+    //Run mmaptest: the first mmap should succeed, but the first access to 
+    //the mmap-ed memory will cause a page fault and kill mmaptest.
+  
+    return -1;
 }
 
 uint64
-munmap(void *addr, size_t len){
+proc_munmap(void *addr, size_t len){
   return -1;
 }
