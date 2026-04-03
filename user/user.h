@@ -1,7 +1,7 @@
-#ifdef LAB_MMAP
+// #ifdef LAB_MMAP
 typedef unsigned long size_t;
 typedef long int off_t;
-#endif
+// #endif
 struct stat;
 
 // system calls
@@ -26,6 +26,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+char* mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
+char munmap(void *addr, size_t len);
 #ifdef LAB_NET
 int bind(uint16);
 int unbind(uint16);
