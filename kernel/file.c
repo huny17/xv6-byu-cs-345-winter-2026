@@ -55,6 +55,7 @@ filedup(struct file *f)
   return f;
 }
 
+
 // Close file f.  (Decrement ref count, close when reaches 0.)
 void
 fileclose(struct file *f)
@@ -81,6 +82,7 @@ fileclose(struct file *f)
     end_op();
   }
 }
+
 
 // Get metadata about file f.
 // addr is a user virtual address, pointing to a struct stat.

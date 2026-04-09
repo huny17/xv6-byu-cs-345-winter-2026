@@ -694,9 +694,20 @@ procdump(void)
   }
 }
 
+/*
+vma_t *vma_alloc(…)
+vma_copy(vma_t *vma)
+vma_dealloc(vma_t *vma)
+vma_includes(vma_t *vma)
+vma_adjust(vma_t *vma, …)
+vma_print(vma_t *vma, …)
+*/
+
+
 
 uint64
 proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
+  struct proc *p = myproc();
 // find an unused region in the process's address 
 //space in which to map the file
 
@@ -704,7 +715,22 @@ proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
 
 //VMA should contain a pointer to a struct file for the file being mapped
     //mmap should increase the file's reference count so that the structure 
-    //doesn't disappear when the file is closed (hint: see filedup)
+    //doesn't disappear when the file is closed (hint: see filedup)    
+
+  if(p->ofile[fd]){
+      struct file *f = p->ofile[fd];
+      filedup(p->ofile[fd]);
+  }
+//do you actually even need the if block and the local variable f here? 
+//What is the one thing you actually need to do?
+
+//if you want each process to have its own array of VMAs, what would 
+//you add to struct proc? You'd be adding a new field, just like how 
+//struct proc already has fields like ofile[NOFILE] for open files.
+//What would that field look like?
+
+
+
   
     //Run mmaptest: the first mmap should succeed, but the first access to 
     //the mmap-ed memory will cause a page fault and kill mmaptest.
@@ -714,5 +740,14 @@ proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
 
 uint64
 proc_munmap(void *addr, size_t len){
+
+  //find the VMA for the address range and unmap the specified pages (hint: use uvmunmap).
+  
+  //f munmap removes all pages of a previous mmap, it should decrement the reference count 
+  //of the corresponding struct file. 
+  
+  //f munmap removes all pages of a previous mmap, it should decrement the reference count 
+  //of the corresponding struct file. 
+
   return -1;
 }
