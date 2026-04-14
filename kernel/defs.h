@@ -12,6 +12,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct vma;
 
 // bio.c
 void            binit(void);

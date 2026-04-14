@@ -38,3 +38,15 @@ struct devsw {
 extern struct devsw devsw[];
 
 #define CONSOLE 1
+
+//my code
+struct vma{
+  int availability;
+  struct file *file;
+  void *addr; 
+  size_t len; 
+  int prot; 
+  int flags; 
+  int fd; 
+  off_t offset;
+};
