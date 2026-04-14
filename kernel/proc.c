@@ -712,6 +712,8 @@ proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
 //space in which to map the file
 
 //find an unused region in the process's address space in which to map the file
+    uint64 region = PGROUNDUP(p->sz); //grabbing the very top of the next spot in the heap then setting the new top of the heap to account for the size of the mapping
+    p->sz = region + len;
 
 //VMA should contain a pointer to a struct file for the file being mapped
     //mmap should increase the file's reference count so that the structure 
