@@ -721,27 +721,46 @@ vma_print(int *vma, …)
 //my code
 
 int
-vma_copy(){
+vma_copy(struct proc *p){
   return 0;
 }
 
 
 int
-vma_includes(){
+vma_includes(struct vma v, int va){
+  if (v.addr <= va && (v.addr + v.len) > va){
+      return 0;
+  }
+
+  return -1;
+}
+
+
+int
+vma_adjust(struct proc *p){
   return 0;
 }
 
 
 int
-vma_adjust(){
+vma_print(struct proc *p, int index){
+  printf("VMA: \n STATE: \n ADDR: \n i: %d\n LEN: %d\n PROT: %d\n FLAGS: %d\n  FD: %d\n OFFSET: %d\n", 
+    p->vmas[index].len, p->vmas[index].prot, p->vmas[index].flags, p->vmas[index].fd, p->vmas[index].offset);
   return 0;
 }
 
+/*
+  enum procstate state;  
+  struct file *file;
+  uint64 addr;
+  int index; 
+  int len; 
+  int prot; 
+  int flags; 
+  int fd; 
+  int offset;
 
-int
-vma_print(){
-  return 0;
-}
+*/
 
 
 int
@@ -869,41 +888,37 @@ int
 _fault_handler(struct proc *p, uint64 va){
   uint flags;
   uint64 pa;
-
   pagetable_t page = p->pagetable;
-
   pte_t *pte = walk(page, PGROUNDDOWN(va), 0);
 
   if(*pte == 0){
     return -1;
   }
-  if(r_scause() == 13){//13 = load page faults
-      return -1;//panic
-  }
+
   if(va >= MAXVA){
       return -1;
   }
 
   for(int i=0; i < NOFILE; i++){
-    if (p->vmas[i].addr == va){ //We still need to address this. If the mapping covers multiple pages, this only catches faults at the very start. What condition would check if va falls anywhere within the mapping?
+    if (vma_includes(p->vmas[i], va) == 0){ //condition checks if va falls anywhere within the mapping
       char *pa = kalloc();
 
-      if (*pa == 0){
+      if (pa == 0){
         return -1;
       }
 
+      memset(pa, 0, PGSIZE); //clean the page
+
       struct file *file = p->vmas[i].file;
-      ///Before writing into the kalloc'd page with readi, should you zero it out first? What xv6 function does that?
+      
       readi(file->ip, 0, pa, p->vmas[i].offset, PGSIZE);
       mappages(page, va, PGSIZE, pa, p->vmas[i].prot);
 
       return 0;
-
     }
   }
     return -1;
 
-  
 }
 
 
