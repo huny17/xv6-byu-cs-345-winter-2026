@@ -81,6 +81,21 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
+//my code
+struct vma{
+  enum procstate state;  
+  struct file *file;
+  uint64 addr;
+  int index; 
+  int len; 
+  int prot; 
+  int flags; 
+  int fd; 
+  int offset;
+};
+
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -106,3 +121,4 @@ struct proc {
   char name[16];               // Process name (debugging)
   struct vma vmas[NOFILE];       //my code, vmas
 };
+

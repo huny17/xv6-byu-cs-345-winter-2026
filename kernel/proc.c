@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -42,6 +43,7 @@ proc_mapstacks(pagetable_t kpgtbl)
     kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   }
 }
+
 
 // initialize the proc table.
 void
@@ -124,6 +126,18 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+
+  for(int i = 0; i < NOFILE; i++) {
+    p->vmas[i].state = UNUSED;
+    p->vmas[i].addr = 0;
+    p->vmas[i].index = 0;
+    p->vmas[i].file = 0;
+    p->vmas[i].len = 0;
+    p->vmas[i].prot = 0;
+    p->vmas[i].flags = 0;
+    p->vmas[i].fd = 0;
+    p->vmas[i].offset = 0;
+  };
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -695,23 +709,81 @@ procdump(void)
 }
 
 /*
-vma_t *vma_alloc(…)
-vma_copy(vma_t *vma)
-vma_dealloc(vma_t *vma)
-vma_includes(vma_t *vma)
-vma_adjust(vma_t *vma, …)
-vma_print(vma_t *vma, …)
+int *vma_alloc(…)
+vma_copy(int *vma)
+vma_dealloc(int *vma)
+vma_includes(int *vma)
+vma_adjust(int *vma, …)
+vma_print(int *vma, …)
 */
 
+
+//my code
+
+int
+vma_copy(){
+  return 0;
+}
+
+
+int
+vma_includes(){
+  return 0;
+}
+
+
+int
+vma_adjust(){
+  return 0;
+}
+
+
+int
+vma_print(){
+  return 0;
+}
+
+
+int
+vma_dealloc(int index, struct proc *p)
+{
+  p->vmas[index].state = UNUSED;
+  p->vmas[index].addr = 0;
+  p->vmas[index].index = 0;
+  p->vmas[index].file = 0;
+  p->vmas[index].len = 0;
+  p->vmas[index].prot = 0;
+  p->vmas[index].flags = 0;
+  p->vmas[index].fd = 0;
+  p->vmas[index].offset = 0;
+  return 0;
+}
+
+
+int
+vma_alloc(struct proc *p)
+{
+  for(int i = 0; i < NOFILE; i++) {
+    if(p->vmas[i].state == UNUSED){
+      p->vmas[i].state = USED;
+      return i;
+    }
+  }
+  return -1;
+}
 
 
 uint64
 proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
   struct proc *p = myproc();
+
 // find an unused region in the process's address 
 //space in which to map the file
 
-//find an unused region in the process's address space in which to map the file
+  int index = vma_alloc(p);
+
+  if (index != -1){
+    //find an unused region in the process's address space in which to map the file
     uint64 region = PGROUNDUP(p->sz); //grabbing the very top of the next spot in the heap then setting the new top of the heap to account for the size of the mapping
     p->sz = region + len;
 
@@ -719,25 +791,21 @@ proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
     //mmap should increase the file's reference count so that the structure 
     //doesn't disappear when the file is closed (hint: see filedup)    
 
-  if(p->ofile[fd]){
-      struct file *f = p->ofile[fd];
-      filedup(p->ofile[fd]);
+    p->vmas[index].addr = region;
+    p->vmas[index].index = index;
+    p->vmas[index].file = p->ofile[fd];
+    p->vmas[index].len = len;
+    p->vmas[index].prot = prot;
+    p->vmas[index].flags = flags;
+    p->vmas[index].fd = fd;
+    p->vmas[index].offset = offset;
+    filedup(p->vmas[index].file);
+    return p->vmas[index].addr;
   }
-//do you actually even need the if block and the local variable f here? 
-//What is the one thing you actually need to do?
-
-//if you want each process to have its own array of VMAs, what would 
-//you add to struct proc? You'd be adding a new field, just like how 
-//struct proc already has fields like ofile[NOFILE] for open files.
-//What would that field look like?
-
-
-
-  
     //Run mmaptest: the first mmap should succeed, but the first access to 
     //the mmap-ed memory will cause a page fault and kill mmaptest.
   
-    return -1;
+  return 0xffffffffffffffff;
 }
 
 uint64

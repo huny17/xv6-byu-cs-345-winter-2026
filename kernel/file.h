@@ -9,6 +9,7 @@ struct file {
   short major;       // FD_DEVICE
 };
 
+
 #define major(dev)  ((dev) >> 16 & 0xFFFF)
 #define minor(dev)  ((dev) & 0xFFFF)
 #define	mkdev(m,n)  ((uint)((m)<<16| (n)))
@@ -39,14 +40,3 @@ extern struct devsw devsw[];
 
 #define CONSOLE 1
 
-//my code
-struct vma{
-  int availability;
-  struct file *file;
-  void *addr; 
-  size_t len; 
-  int prot; 
-  int flags; 
-  int fd; 
-  off_t offset;
-};
