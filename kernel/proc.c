@@ -823,33 +823,89 @@ proc_munmap(void *addr, size_t len){
 }
 
 
+
+
+// int 
+// update(pagetable_t table, uint64 va, pte_t *pte, uint64 pa, uint flags){
+//   uint updated_flags;
+//   uint64 new_pa;
+//   acquire(&kmem.lock);
+//   //printf("%s %d\n", __FILE__, __LINE__);
+
+//   if(get_ref_count(pa) > 1){
+//     new_pa = (uint64)kalloc_no_lock(); //Allocate a new physical page
+    
+//     //printf("%s %d\n", __FILE__, __LINE__);
+
+//     updated_flags = flags | PTE_W; //update to write
+//     updated_flags = updated_flags & ~PTE_COW; //remove cow
+
+
+//     //printf("%s %d\n", __FILE__, __LINE__);
+
+//     memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
+//     mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
+    
+//     //printf("%s %d\n", __FILE__, __LINE__);
+
+//     kfree_no_lock((void *) pa);
+
+//     //printf("%s %d\n", __FILE__, __LINE__);
+//   }
+//   else if(get_ref_count(pa) == 1){
+//     updated_flags = flags | PTE_W; //update to write
+//     updated_flags = updated_flags & ~PTE_COW; //remove cow
+//     //printf("%s %d\n", __FILE__, __LINE__);
+//     //*pte = PA2PTE(pa)| updated_flags;
+//     //printf("%s %d\n", __FILE__, __LINE__);
+//     mappages(table, va, PGSIZE, pa, updated_flags);
+//   }
+//     release(&kmem.lock);
+//     return 0;
+//   }
+
+
 int
-mmap_fault_handler(struct proc *p, uint64 va){
+_fault_handler(struct proc *p, uint64 va){
   uint flags;
   uint64 pa;
 
-  pte_t *pte = walk(table, PGROUNDDOWN(va), 0);
+  pagetable_t page = p->pagetable;
+
+  pte_t *pte = walk(page, PGROUNDDOWN(va), 0);
 
   if(*pte == 0){
     return -1;
   }
-
+  if(r_scause() == 13){//13 = load page faults
+      return -1;//panic
+  }
   if(va >= MAXVA){
       return -1;
   }
-  if((*pte & PTE_COW) && (*pte & PTE_V) && (*pte & PTE_U)){
-  
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
 
-    if(update(table, PGROUNDDOWN((uint64)va), pte, pa, flags) == 0){
+  for(int i=0; i < NOFILE; i++){
+    if (p->vmas[i].addr == va){ //We still need to address this. If the mapping covers multiple pages, this only catches faults at the very start. What condition would check if va falls anywhere within the mapping?
+      char *pa = kalloc();
+
+      if (*pa == 0){
+        return -1;
+      }
+
+      struct file *file = p->vmas[i].file;
+      ///Before writing into the kalloc'd page with readi, should you zero it out first? What xv6 function does that?
+      readi(file->ip, 0, pa, p->vmas[i].offset, PGSIZE);
+      mappages(page, va, PGSIZE, pa, p->vmas[i].prot);
+
       return 0;
+
     }
   }
-  else{
-    //printf("%s %d\n", __FILE__, __LINE__);
     return -1;
-  }
-  return 0;
+
+  
 }
+
+
+
 
