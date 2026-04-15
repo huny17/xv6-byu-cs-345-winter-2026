@@ -821,3 +821,35 @@ proc_munmap(void *addr, size_t len){
 
   return -1;
 }
+
+
+int
+mmap_fault_handler(struct proc *p, uint64 va){
+  uint flags;
+  uint64 pa;
+
+  pte_t *pte = walk(table, PGROUNDDOWN(va), 0);
+
+  if(*pte == 0){
+    return -1;
+  }
+
+  if(va >= MAXVA){
+      return -1;
+  }
+  if((*pte & PTE_COW) && (*pte & PTE_V) && (*pte & PTE_U)){
+  
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+
+    if(update(table, PGROUNDDOWN((uint64)va), pte, pa, flags) == 0){
+      return 0;
+    }
+  }
+  else{
+    //printf("%s %d\n", __FILE__, __LINE__);
+    return -1;
+  }
+  return 0;
+}
+
