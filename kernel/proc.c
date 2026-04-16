@@ -356,6 +356,257 @@ reparent(struct proc *p)
   }
 }
 
+
+
+/*
+int *vma_alloc(…)
+vma_copy(int *vma) - call fork copy memcopy or memmove on vma struc
+vma_dealloc(int *vma) -> if unmap start of vma
+vma_includes(int *vma)
+vma_adjust(int *vma, …) - 
+vma_print(int *vma, …)
+
+always want to keep start of vma
+*/
+
+int
+vma_print(struct vma *vma){
+  printf("VMA: \n STATE: %d\n ADDR:  %lu \n i: %d\n LEN: %lu\n PROT: %d\n FLAGS: %d\n  FD: %d\n OFFSET: %lu\n \n", 
+    (int)vma->state, vma->addr, vma->index, vma->len, vma->prot, vma->flags, vma->fd, vma->offset);
+  return 0;
+}
+
+
+int
+vma_includes(struct vma *v, uint64 va){ //pointer when passing in structure as argument
+  //printf("\nVMA_includes\n");
+  //vma_print(v);
+  
+  if (v->state == USED){
+    if (v->addr <= va && (v->addr + v->len) > va){
+        return 0;
+    }
+  }
+  return -1;
+}
+
+struct vma *
+find_vma(struct proc *p, uint64 va){
+
+  for(int i=0; i < NOFILE; i++){
+    if (vma_includes(&p->vmas[i], va) == 0){
+      //printf("\nfind_VMA \n");
+      //vma_print(&p->vmas[i]);
+      return &p->vmas[i];
+    }
+  }
+  return 0;
+}
+
+
+int
+vma_dealloc(struct vma *vma, size_t len, uint64 addr, struct proc *p)
+{
+  if(vma != 0){
+
+  //if munmap removes all pages of a previous mmap, it should decrement the reference count 
+  //of the corresponding struct file. 
+
+    if (len == vma->len){
+
+      fileclose(vma->file);
+
+      vma->state = UNUSED;
+      vma->top = 0;
+      vma->addr = 0;
+      vma->index = 0;
+      vma->file = 0;
+      vma->len = 0;
+      vma->prot = 0;
+      vma->flags = 0;
+      vma->fd = 0;
+      vma->offset = 0;
+
+      p->sz = p->sz-len;
+
+      return 0;
+    }
+
+    if (vma->addr == addr){ //top
+      vma->addr = vma->addr + len;
+      vma->offset = vma->offset + len;
+      vma->len = (vma->len - len);
+      return 0;
+    }
+
+    if(vma->addr < addr){ //bottom
+      vma->len = (vma->len - len);
+      return 0;
+    }
+
+  }
+  return -1;
+}
+
+
+int
+vma_alloc(struct proc *p)
+{
+  for(int i = 0; i < NOFILE; i++) {
+    if(p->vmas[i].state == UNUSED){
+      p->vmas[i].state = USED;
+      return i;
+    }
+  }
+  return -1;
+}
+
+
+uint64
+proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
+  struct proc *p = myproc();
+
+// find an unused region in the process's address 
+//space in which to map the file
+
+  int index = vma_alloc(p);
+
+  if (index != -1){
+    //find an unused region in the process's address space in which to map the file
+    uint64 region = PGROUNDUP(p->sz); //grabbing the very top of the next spot in the heap then setting the new top of the heap to account for the size of the mapping
+    p->sz = region + len;
+
+//VMA should contain a pointer to a struct file for the file being mapped
+    //mmap should increase the file's reference count so that the structure 
+    //doesn't disappear when the file is closed (hint: see filedup)    
+
+    if ((flags & MAP_PRIVATE) == 0){
+      if (((prot & PROT_WRITE) != 0) && ((p->ofile[fd]->writable) == 0)){
+        return -1;
+      }
+    }
+
+
+    p->vmas[index].addr = region;
+    p->vmas[index].top = region;
+    p->vmas[index].index = index;
+    p->vmas[index].file = p->ofile[fd];
+    p->vmas[index].len = len;
+    p->vmas[index].prot = prot;
+    p->vmas[index].flags = flags;
+    p->vmas[index].fd = fd;
+    p->vmas[index].offset = offset;
+    filedup(p->vmas[index].file);
+    return p->vmas[index].addr;
+  }
+    //Run mmaptest: the first mmap should succeed, but the first access to 
+    //the mmap-ed memory will cause a page fault and kill mmaptest.
+  
+  return 0xffffffffffffffff;
+}
+
+uint64
+proc_munmap(void *addr, size_t len){
+
+  printf("input - addr: %lu, len: %lu \n", (uint64)addr, len);
+
+  struct proc *p = myproc();
+
+  struct vma *vma = find_vma(p, (uint64)addr);
+
+  printf("reached munmap\n");
+  
+
+  if (vma != 0){
+
+      //If an unmapped page has been modified and the file is mapped MAP_SHARED, 
+      //write the page back to the file. Look at filewrite for inspiration.
+
+      if ((vma->flags & MAP_SHARED) != 0){
+        filewrite(vma->file, vma->top, vma->len);
+      }
+
+  //find the VMA for the address range and unmap the specified pages (hint: use uvmunmap).
+
+    for(uint64 i = (uint64)addr; i < ((uint64)addr + len); i+=PGSIZE){
+
+      //printf("i: %lu\n", i);
+
+      pte_t *pte = walk(p->pagetable, PGROUNDDOWN(i), 0);
+          if (pte != 0){
+            if((*pte & PTE_V) != 0){
+              printf("passed check\n");
+              uvmunmap(p->pagetable, PGROUNDDOWN(i), 1, 0);
+            }
+          }
+    }
+    vma_dealloc(vma, len, (uint64)addr, p);
+      return 0;
+    }
+  return -1;
+}
+
+
+int
+mmap_fault_handler(struct proc *p, uint64 va){
+
+
+  //printf("va: %lu \n", va);
+
+  int flags;
+  pagetable_t page = p->pagetable;
+
+  pte_t *pte = walk(page, PGROUNDDOWN(va), 0);
+
+  if(va >= MAXVA){
+      return -1;
+  }
+
+  if (pte != 0){
+    if(*pte & PTE_V){
+      return -1;
+    }
+  }
+
+  struct vma *vma = find_vma(p, va);
+
+  if (vma != 0){ //condition checks if va falls anywhere within the mapping
+      char *pa = kalloc();
+
+      if (pa == 0){
+        return -1;
+      }
+
+      //printf("kalloc: %s\n", pa);
+
+      memset(pa, 0, PGSIZE); //clean the page
+      struct file *file = vma->file;
+      uint64 off = va - vma->addr;
+
+      ilock(file->ip);      
+      readi(file->ip, 0, (uint64)pa, (off + vma->offset), PGSIZE);
+      iunlock(file->ip);
+
+      //convert prot to flags mappages knows (perm) PTE_R PTE_W only check for w, always want v and r
+
+      if((vma->prot & PROT_WRITE) != 0){
+        flags = (PTE_U | PTE_R | PTE_V | PTE_W);
+      }
+      else{
+        flags = (PTE_U | PTE_R | PTE_V);
+      }
+
+      mappages(page, PGROUNDDOWN(va), PGSIZE, (uint64)pa, flags);
+
+      //printf("mappages: %d\n", a);
+
+      return 0;
+    }
+    return -1;
+}
+
+
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait().
@@ -367,6 +618,18 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  //printf("before p->sz: %lu\n", p->sz);
+  printf("exit\n");
+
+  for(int i = 0; i < NOFILE; i++){
+    if (p->vmas[i].state == UNUSED){
+      continue;
+    }
+    proc_munmap((void *)p->vmas[i].addr, p->vmas[i].len);
+  }
+
+  //printf("after p->sz: %lu\n", p->sz);
+
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
@@ -375,6 +638,8 @@ exit(int status)
       p->ofile[fd] = 0;
     }
   }
+
+  
 
   begin_op();
   iput(p->cwd);
@@ -710,273 +975,7 @@ procdump(void)
   }
 }
 
-/*
-int *vma_alloc(…)
-vma_copy(int *vma) - call fork copy memcopy or memmove on vma struc
-vma_dealloc(int *vma) -> if unmap start of vma
-vma_includes(int *vma)
-vma_adjust(int *vma, …) - 
-vma_print(int *vma, …)
 
-always want to keep start of vma
-*/
-
-int
-vma_print(struct vma *vma){
-  printf("VMA: \n STATE: %d\n ADDR:  %lu \n i: %d\n LEN: %lu\n PROT: %d\n FLAGS: %d\n  FD: %d\n OFFSET: %lu\n \n", 
-    (int)vma->state, vma->addr, vma->index, vma->len, vma->prot, vma->flags, vma->fd, vma->offset);
-  return 0;
-}
-
-
-int
-vma_includes(struct vma *v, uint64 va){ //pointer when passing in structure as argument
-  //printf("\nVMA_includes\n");
-  //vma_print(v);
-  
-  if (v->state == USED){
-    if (v->addr <= va && (v->addr + v->len) > va){
-        return 0;
-    }
-  }
-  return -1;
-}
-
-struct vma *
-find_vma(struct proc *p, uint64 va){
-
-  for(int i=0; i < NOFILE; i++){
-    if (vma_includes(&p->vmas[i], va) == 0){
-      //printf("\nfind_VMA \n");
-      //vma_print(&p->vmas[i]);
-      return &p->vmas[i];
-    }
-  }
-  return 0;
-}
-
-
-
-
-
-
-int
-vma_dealloc(struct vma *vma, size_t len, uint64 addr)
-{
-  if(vma != 0){
-
-  //if munmap removes all pages of a previous mmap, it should decrement the reference count 
-  //of the corresponding struct file. 
-
-    if (len == vma->len){
-
-      fileclose(vma->file);
-
-      vma->state = UNUSED;
-      vma->top = 0;
-      vma->addr = 0;
-      vma->index = 0;
-      vma->file = 0;
-      vma->len = 0;
-      vma->prot = 0;
-      vma->flags = 0;
-      vma->fd = 0;
-      vma->offset = 0;
-      return 0;
-    }
-
-    if (vma->addr == addr){ //top
-      vma->addr = vma->addr + len;
-      vma->offset = vma->offset + (vma->len - len);
-      vma->len = (vma->len - len);
-      return 0;
-    }
-
-    if(vma->addr < addr){ //bottom
-      vma->len = (vma->len - len);
-      return 0;
-    }
-
-  }
-  return -1;
-}
-
-
-int
-vma_alloc(struct proc *p)
-{
-  for(int i = 0; i < NOFILE; i++) {
-    if(p->vmas[i].state == UNUSED){
-      p->vmas[i].state = USED;
-      return i;
-    }
-  }
-  return -1;
-}
-
-
-uint64
-proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
-  struct proc *p = myproc();
-
-// find an unused region in the process's address 
-//space in which to map the file
-
-  int index = vma_alloc(p);
-
-  if (index != -1){
-    //find an unused region in the process's address space in which to map the file
-    uint64 region = PGROUNDUP(p->sz); //grabbing the very top of the next spot in the heap then setting the new top of the heap to account for the size of the mapping
-    p->sz = region + len;
-
-//VMA should contain a pointer to a struct file for the file being mapped
-    //mmap should increase the file's reference count so that the structure 
-    //doesn't disappear when the file is closed (hint: see filedup)    
-
-    p->vmas[index].addr = region;
-    p->vmas[index].top = region;
-    p->vmas[index].index = index;
-    p->vmas[index].file = p->ofile[fd];
-    p->vmas[index].len = len;
-    p->vmas[index].prot = prot;
-    p->vmas[index].flags = flags;
-    p->vmas[index].fd = fd;
-    p->vmas[index].offset = offset;
-    filedup(p->vmas[index].file);
-    return p->vmas[index].addr;
-  }
-    //Run mmaptest: the first mmap should succeed, but the first access to 
-    //the mmap-ed memory will cause a page fault and kill mmaptest.
-  
-  return 0xffffffffffffffff;
-}
-
-uint64
-proc_munmap(void *addr, size_t len){
-
-  struct proc *p = myproc();
-
-  struct vma *vma = find_vma(p, (uint64)addr);
-
-  if (vma != 0){
-
-      //If an unmapped page has been modified and the file is mapped MAP_SHARED, 
-      //write the page back to the file. Look at filewrite for inspiration.
-
-      if ((vma->flags & MAP_SHARED) != 0){
-        filewrite(vma->file, vma->addr, vma->len);
-      }
-
-  //find the VMA for the address range and unmap the specified pages (hint: use uvmunmap).
-      uvmunmap(p->pagetable, vma->addr, 1, 0);
-
-      vma_dealloc(vma, len, (uint64)addr);
-
-      return 0;
-    }
-  return -1;
-}
-
-
-
-
-// int 
-// update(pagetable_t table, uint64 va, pte_t *pte, uint64 pa, uint flags){
-//   uint updated_flags;
-//   uint64 new_pa;
-//   acquire(&kmem.lock);
-//   //printf("%s %d\n", __FILE__, __LINE__);
-
-//   if(get_ref_count(pa) > 1){
-//     new_pa = (uint64)kalloc_no_lock(); //Allocate a new physical page
-    
-//     //printf("%s %d\n", __FILE__, __LINE__);
-
-//     updated_flags = flags | PTE_W; //update to write
-//     updated_flags = updated_flags & ~PTE_COW; //remove cow
-
-
-//     //printf("%s %d\n", __FILE__, __LINE__);
-
-//     memmove((void *)new_pa, (const void *)pa, PGSIZE); //Copy the contents from the old page into the new one
-//     mappages(table, va, PGSIZE, new_pa, updated_flags);//Map the new page as writable
-    
-//     //printf("%s %d\n", __FILE__, __LINE__);
-
-//     kfree_no_lock((void *) pa);
-
-//     //printf("%s %d\n", __FILE__, __LINE__);
-//   }
-//   else if(get_ref_count(pa) == 1){
-//     updated_flags = flags | PTE_W; //update to write
-//     updated_flags = updated_flags & ~PTE_COW; //remove cow
-//     //printf("%s %d\n", __FILE__, __LINE__);
-//     //*pte = PA2PTE(pa)| updated_flags;
-//     //printf("%s %d\n", __FILE__, __LINE__);
-//     mappages(table, va, PGSIZE, pa, updated_flags);
-//   }
-//     release(&kmem.lock);
-//     return 0;
-//   }
-
-
-int
-mmap_fault_handler(struct proc *p, uint64 va){
-
-
-  //printf("va: %lu \n", va);
-
-  int flags;
-  pagetable_t page = p->pagetable;
-
-  pte_t *pte = walk(page, PGROUNDDOWN(va), 0);
-
-  if(va >= MAXVA){
-      return -1;
-  }
-
-  if (pte != 0){
-    if(*pte & PTE_V){
-      return -1;
-    }
-  }
-
-  struct vma *vma = find_vma(p, va);
-
-  if (vma != 0){ //condition checks if va falls anywhere within the mapping
-      char *pa = kalloc();
-
-      if (pa == 0){
-        return -1;
-      }
-
-      //printf("kalloc: %s\n", pa);
-
-      memset(pa, 0, PGSIZE); //clean the page
-      struct file *file = vma->file;
-      uint64 off = va - vma->addr;
-
-      ilock(file->ip);      
-      readi(file->ip, 0, (uint64)pa, (off + vma->offset), PGSIZE);
-      iunlock(file->ip);
-
-      //convert prot to flags mappages knows (perm) PTE_R PTE_W only check for w, always want v and r
-
-      if((vma->prot & PROT_WRITE) != 0){
-        flags = (PTE_U | PTE_R | PTE_V | PTE_W);
-      }
-      else{
-        flags = (PTE_U | PTE_R | PTE_V);
-      }
-
-      mappages(page, PGROUNDDOWN(va), PGSIZE, (uint64)pa, flags);
-
-      //printf("mappages: %d\n", a);
-
-      return 0;
-    }
-    return -1;
-}
 
 
 

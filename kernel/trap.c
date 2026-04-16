@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -68,9 +69,40 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } 
+
+  else if (r_scause() == 15){
+    //printf("r_scause: %lu", r_stval());
+
+    struct vma *vma = find_vma(myproc(), r_stval());
+    if (vma == 0 ){
+          printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+          panic("mmap");
+          printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
+          setkilled(p);
+    }
+    if(killed(p)){
+      exit(-1);
+    }
+      if ((vma->prot & PROT_WRITE) != 0){
+          if(mmap_fault_handler(p, r_stval()) == -1){
+            printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+            panic("mmap");
+            printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
+            setkilled(p);
+        } 
+    }
+    else{
+          printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+          panic("mmap");
+          printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
+          setkilled(p);
+    }
+
+  }
   
       //my code
-  else if (r_scause() == 15 || r_scause() == 13){ 
+  else if (r_scause() == 13){ 
+      //printf("13 r_scause: %lu", r_stval());
 
       if(mmap_fault_handler(p, r_stval()) == -1){
         printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
