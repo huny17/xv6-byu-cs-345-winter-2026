@@ -369,6 +369,19 @@ vma_print(int *vma, …)
 always want to keep start of vma
 */
 
+
+uint64
+min(uint64 a, uint64 b){
+  if (a > b){
+    return b;
+  }
+  if (b > a){
+    return a;
+  }
+  return a;
+}
+
+
 int
 vma_print(struct vma *vma){
   printf("VMA: \n STATE: %d\n ADDR:  %lu \n i: %d\n LEN: %lu\n PROT: %d\n FLAGS: %d\n  FD: %d\n OFFSET: %lu\n \n", 
@@ -523,7 +536,13 @@ proc_munmap(void *addr, size_t len){
       //write the page back to the file. Look at filewrite for inspiration.
 
       if ((vma->flags & MAP_SHARED) != 0){
-        filewrite(vma->file, vma->top, vma->len);
+
+        int off = min((uint64)len,  min((uint64)vma->len, (uint64)(vma->file->ip->size - vma->offset)));
+        filewrite(vma->file, vma->addr, off);
+        
+        // ilock(vma->file->ip);    
+        // writei(vma->file->ip, 1, vma->addr, vma->offset, off);
+        // iunlock(vma->file->ip);
       }
 
   //find the VMA for the address range and unmap the specified pages (hint: use uvmunmap).
@@ -535,7 +554,7 @@ proc_munmap(void *addr, size_t len){
       pte_t *pte = walk(p->pagetable, PGROUNDDOWN(i), 0);
           if (pte != 0){
             if((*pte & PTE_V) != 0){
-              printf("passed check\n");
+              //printf("passed check\n");
               uvmunmap(p->pagetable, PGROUNDDOWN(i), 1, 0);
             }
           }
@@ -625,7 +644,11 @@ exit(int status)
     if (p->vmas[i].state == UNUSED){
       continue;
     }
-    proc_munmap((void *)p->vmas[i].addr, p->vmas[i].len);
+
+    uint64 addr = p->vmas[i].addr;
+    uint64 len  = p->vmas[i].len;
+
+    proc_munmap((void *)addr, len);
   }
 
   //printf("after p->sz: %lu\n", p->sz);
