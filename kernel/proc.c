@@ -721,14 +721,24 @@ vma_print(int *vma, …)
 always want to keep start of vma
 */
 
+int
+vma_print(struct vma *vma){
+  printf("VMA: \n STATE: %d\n ADDR:  %lu \n i: %d\n LEN: %lu\n PROT: %d\n FLAGS: %d\n  FD: %d\n OFFSET: %lu\n \n", 
+    (int)vma->state, vma->addr, vma->index, vma->len, vma->prot, vma->flags, vma->fd, vma->offset);
+  return 0;
+}
 
 
 int
 vma_includes(struct vma *v, uint64 va){ //pointer when passing in structure as argument
-  if (v->addr <= va && (v->addr + v->len) > va){
-      return 0;
+  //printf("\nVMA_includes\n");
+  //vma_print(v);
+  
+  if (v->state == USED){
+    if (v->addr <= va && (v->addr + v->len) > va){
+        return 0;
+    }
   }
-
   return -1;
 }
 
@@ -737,6 +747,8 @@ find_vma(struct proc *p, uint64 va){
 
   for(int i=0; i < NOFILE; i++){
     if (vma_includes(&p->vmas[i], va) == 0){
+      //printf("\nfind_VMA \n");
+      //vma_print(&p->vmas[i]);
       return &p->vmas[i];
     }
   }
@@ -744,17 +756,12 @@ find_vma(struct proc *p, uint64 va){
 }
 
 
-int
-vma_print(struct proc *p, int index){
-  printf("VMA: \n STATE: \n ADDR: \n i: %d\n LEN: %lu\n PROT: %d\n FLAGS: %d\n  FD: %d\n OFFSET: %lu\n", 
-    p->vmas[index].index, p->vmas[index].len, p->vmas[index].prot, p->vmas[index].flags, p->vmas[index].fd, p->vmas[index].offset);
-  return 0;
-}
+
 
 
 
 int
-vma_dealloc(struct vma *vma, size_t len, void *addr)
+vma_dealloc(struct vma *vma, size_t len, uint64 addr)
 {
   if(vma != 0){
 
@@ -863,7 +870,7 @@ proc_munmap(void *addr, size_t len){
   //find the VMA for the address range and unmap the specified pages (hint: use uvmunmap).
       uvmunmap(p->pagetable, vma->addr, 1, 0);
 
-      vma_dealloc(vma, len, addr);
+      vma_dealloc(vma, len, (uint64)addr);
 
       return 0;
     }
@@ -915,11 +922,23 @@ proc_munmap(void *addr, size_t len){
 
 int
 mmap_fault_handler(struct proc *p, uint64 va){
+
+
+  //printf("va: %lu \n", va);
+
   int flags;
   pagetable_t page = p->pagetable;
 
+  pte_t *pte = walk(page, PGROUNDDOWN(va), 0);
+
   if(va >= MAXVA){
       return -1;
+  }
+
+  if (pte != 0){
+    if(*pte & PTE_V){
+      return -1;
+    }
   }
 
   struct vma *vma = find_vma(p, va);
@@ -930,6 +949,8 @@ mmap_fault_handler(struct proc *p, uint64 va){
       if (pa == 0){
         return -1;
       }
+
+      //printf("kalloc: %s\n", pa);
 
       memset(pa, 0, PGSIZE); //clean the page
       struct file *file = vma->file;
@@ -942,13 +963,15 @@ mmap_fault_handler(struct proc *p, uint64 va){
       //convert prot to flags mappages knows (perm) PTE_R PTE_W only check for w, always want v and r
 
       if((vma->prot & PROT_WRITE) != 0){
-        flags = (PTE_R | PTE_V | PTE_W);
+        flags = (PTE_U | PTE_R | PTE_V | PTE_W);
       }
       else{
-        flags = (PTE_R | PTE_V);
+        flags = (PTE_U | PTE_R | PTE_V);
       }
 
       mappages(page, PGROUNDDOWN(va), PGSIZE, (uint64)pa, flags);
+
+      //printf("mappages: %d\n", a);
 
       return 0;
     }
