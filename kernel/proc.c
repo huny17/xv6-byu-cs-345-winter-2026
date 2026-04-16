@@ -436,7 +436,16 @@ vma_dealloc(struct vma *vma, size_t len, uint64 addr, struct proc *p)
 
     if (len == vma->len){
 
-      fileclose(vma->file);
+      for(int i=0; i<NOFILE; i++){
+        if (p->ofile[i] == vma->file){
+          if (p->ofile[i]->ref == 1){
+            //p->ofile[i] = 0;
+            fileclose(vma->file);
+          }
+        }
+      }
+
+      
 
       vma->state = UNUSED;
       vma->top = 0;
@@ -648,6 +657,7 @@ mmap_fault_handler(struct proc *p, uint64 va){
 
       printf("process name: %s\n", p->name);
 
+      printf("returning from fault handler\n");
 
       return 0;
     }
