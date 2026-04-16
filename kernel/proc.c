@@ -292,6 +292,12 @@ growproc(int n)
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
+
+
+
+//Modify fork to ensure that the child has the same mapped regions as the parent. 
+//Don't forget to increment the reference count for a VMA's struct file. 
+//In the page fault handler of the child, it is OK to allocate a new physical page 
 int
 fork(void)
 {
@@ -311,6 +317,13 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+
+  for (int i = 0; i < NOFILE; i++){
+    np->vmas[i] = p->vmas[i];
+    if (np->vmas[i].state == USED){
+      filedup(np->vmas[i].file);
+    }
+  }
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -392,8 +405,6 @@ vma_print(struct vma *vma){
 
 int
 vma_includes(struct vma *v, uint64 va){ //pointer when passing in structure as argument
-  //printf("\nVMA_includes\n");
-  //vma_print(v);
   
   if (v->state == USED){
     if (v->addr <= va && (v->addr + v->len) > va){
@@ -408,8 +419,6 @@ find_vma(struct proc *p, uint64 va){
 
   for(int i=0; i < NOFILE; i++){
     if (vma_includes(&p->vmas[i], va) == 0){
-      //printf("\nfind_VMA \n");
-      //vma_print(&p->vmas[i]);
       return &p->vmas[i];
     }
   }
@@ -495,6 +504,7 @@ proc_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset){
 
     if ((flags & MAP_PRIVATE) == 0){
       if (((prot & PROT_WRITE) != 0) && ((p->ofile[fd]->writable) == 0)){
+        vma_dealloc(&p->vmas[index], len, (uint64) addr, p);
         return -1;
       }
     }
@@ -570,8 +580,6 @@ int
 mmap_fault_handler(struct proc *p, uint64 va){
 
 
-  //printf("va: %lu \n", va);
-
   int flags;
   pagetable_t page = p->pagetable;
 
@@ -587,6 +595,8 @@ mmap_fault_handler(struct proc *p, uint64 va){
     }
   }
 
+  printf("pid: %d\n", p->pid);
+
   struct vma *vma = find_vma(p, va);
 
   if (vma != 0){ //condition checks if va falls anywhere within the mapping
@@ -596,15 +606,30 @@ mmap_fault_handler(struct proc *p, uint64 va){
         return -1;
       }
 
-      //printf("kalloc: %s\n", pa);
-
       memset(pa, 0, PGSIZE); //clean the page
       struct file *file = vma->file;
+
+      vma_print(vma);
+
+      if (file == 0){
+        return -1;
+      }
+      printf("after file check\n");
+
+      if (file->ip == 0){
+        return -1;
+      }
+
+      printf("after inode check\n");
+      printf("inode: %lu\n", (uint64)file->ip->addrs);
+
       uint64 off = va - vma->addr;
 
       ilock(file->ip);      
       readi(file->ip, 0, (uint64)pa, (off + vma->offset), PGSIZE);
       iunlock(file->ip);
+
+      printf("pass inode\n");
 
       //convert prot to flags mappages knows (perm) PTE_R PTE_W only check for w, always want v and r
 
@@ -615,9 +640,14 @@ mmap_fault_handler(struct proc *p, uint64 va){
         flags = (PTE_U | PTE_R | PTE_V);
       }
 
-      mappages(page, PGROUNDDOWN(va), PGSIZE, (uint64)pa, flags);
+      int a = mappages(page, PGROUNDDOWN(va), PGSIZE, (uint64)pa, flags);
 
-      //printf("mappages: %d\n", a);
+      printf("mappages: %d\n", a);
+
+      printf("kstack address: %lu\n", p->kstack);
+
+      printf("process name: %s\n", p->name);
+
 
       return 0;
     }

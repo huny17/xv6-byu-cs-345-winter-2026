@@ -76,7 +76,7 @@ usertrap(void)
     struct vma *vma = find_vma(myproc(), r_stval());
     if (vma == 0 ){
           printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
-          panic("mmap");
+          //panic("mmap");
           printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
           setkilled(p);
     }
@@ -86,14 +86,14 @@ usertrap(void)
       if ((vma->prot & PROT_WRITE) != 0){
           if(mmap_fault_handler(p, r_stval()) == -1){
             printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
-            panic("mmap");
+            //panic("mmap");
             printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
             setkilled(p);
         } 
     }
     else{
           printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
-          panic("mmap");
+          //panic("mmap");
           printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
           setkilled(p);
     }
@@ -106,7 +106,7 @@ usertrap(void)
 
       if(mmap_fault_handler(p, r_stval()) == -1){
         printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
-        panic("mmap");
+        //panic("mmap");
         printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
         setkilled(p);
       } 
